@@ -25,5 +25,5 @@ vite.config.ts.timestamp-*
 # Capacitor native projects (regenerate with `npx cap add`)
 /ios
 
-# Capacitor native projects (regenerate with `npx cap add`)
-/ios
+# Supabase CLI local state
+supabase/.temp/

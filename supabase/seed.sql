@@ -77,3 +77,56 @@ insert into quotes (text, author_id) values
   ('He who has a why to live can bear almost any how.', (select id from authors where slug = 'friedrich-nietzsche')),
   ('That which does not kill us makes us stronger.', (select id from authors where slug = 'friedrich-nietzsche')),
   ('Without music, life would be a mistake.', (select id from authors where slug = 'friedrich-nietzsche'));
+
+-- Tags for a sample of the quotes above (tag_names picked to spot-check
+-- add_quote_tags and give the /tags browse route something to show).
+select add_quote_tags(id, array['stoicism', 'mindset'])
+  from quotes where text = 'You have power over your mind, not outside events. Realize this, and you will find strength.';
+select add_quote_tags(id, array['perseverance'])
+  from quotes where text = 'The impediment to action advances action. What stands in the way becomes the way.';
+select add_quote_tags(id, array['kindness'])
+  from quotes where text = 'Kindness is the language which the deaf can hear and the blind can see.';
+select add_quote_tags(id, array['love', 'kindness'])
+  from quotes where text like 'I''ve learned that people will forget what you said%';
+select add_quote_tags(id, array['perseverance', 'mindset'])
+  from quotes where text like 'If you don''t like something, change it%';
+select add_quote_tags(id, array['imagination', 'wisdom'])
+  from quotes where text = 'Imagination is more important than knowledge.';
+select add_quote_tags(id, array['authenticity'])
+  from quotes where text = 'Be yourself; everyone else is already taken.';
+select add_quote_tags(id, array['perseverance'])
+  from quotes where text = 'It does not matter how slowly you go as long as you do not stop.';
+select add_quote_tags(id, array['courage', 'resilience'])
+  from quotes where text like 'Our greatest glory is not in never falling%';
+select add_quote_tags(id, array['purpose', 'work'])
+  from quotes where text = 'Choose a job you love, and you will never have to work a day in your life.';
+select add_quote_tags(id, array['courage', 'individuality'])
+  from quotes where text like 'Do not go where the path may lead%';
+select add_quote_tags(id, array['perseverance'])
+  from quotes where text = 'A journey of a thousand miles begins with a single step.';
+select add_quote_tags(id, array['resilience', 'courage'])
+  from quotes where text like 'Success is not final, failure is not fatal%';
+select add_quote_tags(id, array['giving', 'purpose'])
+  from quotes where text like 'We make a living by what we get%';
+select add_quote_tags(id, array['courage', 'dreams'])
+  from quotes where text = 'The future belongs to those who believe in the beauty of their dreams.';
+select add_quote_tags(id, array['self-worth', 'confidence'])
+  from quotes where text = 'No one can make you feel inferior without your consent.';
+select add_quote_tags(id, array['courage'])
+  from quotes where text = 'Do one thing every day that scares you.';
+select add_quote_tags(id, array['wisdom', 'self-knowledge'])
+  from quotes where text = 'Knowing yourself is the beginning of all wisdom.';
+select add_quote_tags(id, array['habit', 'excellence'])
+  from quotes where text like 'We are what we repeatedly do%';
+select add_quote_tags(id, array['adventure', 'courage'])
+  from quotes where text = 'Life is either a daring adventure or nothing at all.';
+select add_quote_tags(id, array['unity', 'community'])
+  from quotes where text like 'Alone we can do so little%';
+select add_quote_tags(id, array['dreams', 'purpose'])
+  from quotes where text like 'Go confidently in the direction of your dreams%';
+select add_quote_tags(id, array['truth'])
+  from quotes where text = 'Rather than love, than money, than fame, give me truth.';
+select add_quote_tags(id, array['purpose', 'resilience'])
+  from quotes where text = 'He who has a why to live can bear almost any how.';
+select add_quote_tags(id, array['resilience'])
+  from quotes where text = 'That which does not kill us makes us stronger.';

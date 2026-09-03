@@ -1,17 +1,20 @@
 import { supabase } from '$lib/supabase';
 import { auth, ensureSession } from '$lib/stores/session.svelte';
-import type { Quote } from '$lib/types';
+import type { Quote, Tag } from '$lib/types';
 
-const QUOTE_SELECT = 'id, text, author_id, created_at, author:authors(name, slug), likes(user_id)';
+const QUOTE_SELECT =
+	'id, text, author_id, created_at, author:authors(name, slug), likes(user_id), quote_tags(tag:tags(id, name, slug))';
 
 function toQuote(row: any): Quote {
 	const likes: { user_id: string }[] = row.likes ?? [];
+	const quoteTags: { tag: Tag }[] = row.quote_tags ?? [];
 	return {
 		id: row.id,
 		text: row.text,
 		author_id: row.author_id,
 		created_at: row.created_at,
 		author: row.author,
+		tags: quoteTags.map((qt) => qt.tag),
 		like_count: row.like_count ?? likes.length,
 		liked_by_me: likes.some((l) => l.user_id === auth.userId)
 	};
@@ -67,18 +70,22 @@ export async function setLiked(quoteId: string, liked: boolean): Promise<void> {
 	}
 }
 
-export async function submitQuote(text: string, authorName: string): Promise<void> {
-	const session = await ensureSession();
-	const { data: author, error } = await supabase
-		.rpc('get_or_create_author', { author_name: authorName })
-		.single();
+export async function fetchQuotesByTag(tagSlug: string): Promise<Quote[]> {
+	const { data: tag, error: tagErr } = await supabase
+		.from('tags')
+		.select('id')
+		.eq('slug', tagSlug)
+		.maybeSingle();
+	if (tagErr) throw tagErr;
+	if (!tag) return [];
+	const taggedSelect = QUOTE_SELECT.replace('quote_tags(tag:tags', 'quote_tags!inner(tag:tags');
+	const { data, error } = await supabase
+		.from('quotes')
+		.select(taggedSelect)
+		.eq('quote_tags.tag_id', tag.id)
+		.order('created_at', { ascending: false });
 	if (error) throw error;
-	const { error: err2 } = await supabase.from('quotes').insert({
-		text,
-		author_id: (author as { id: string }).id,
-		submitted_by: session.user.id
-	});
-	if (err2) throw err2;
+	return data.map(toQuote);
 }
 
 export async function randomQuote(): Promise<{ text: string; author: string } | null> {

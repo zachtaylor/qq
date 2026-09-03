@@ -35,6 +35,18 @@
 
 <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
 	<blockquote class="font-serif text-lg leading-relaxed text-stone-800">“{quote.text}”</blockquote>
+	{#if quote.tags.length > 0}
+		<div class="mt-3 flex flex-wrap gap-1.5">
+			{#each quote.tags as tag (tag.id)}
+				<a
+					href="/tags/{tag.slug}"
+					class="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-500 hover:bg-stone-200"
+				>
+					#{tag.name}
+				</a>
+			{/each}
+		</div>
+	{/if}
 	<div class="mt-4 flex items-center justify-between">
 		<a href="/authors/{quote.author.slug}" class="text-sm font-medium text-accent hover:underline">
 			— {quote.author.name}

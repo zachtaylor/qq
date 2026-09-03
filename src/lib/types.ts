@@ -8,12 +8,19 @@ export interface Author {
 	died_year: number | null;
 }
 
+export interface Tag {
+	id: string;
+	name: string;
+	slug: string;
+}
+
 export interface Quote {
 	id: string;
 	text: string;
 	author_id: string;
 	created_at: string;
 	author: Pick<Author, 'name' | 'slug'>;
+	tags: Tag[];
 	like_count: number;
 	liked_by_me: boolean;
 }

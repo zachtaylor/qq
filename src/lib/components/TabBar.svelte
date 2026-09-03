@@ -4,7 +4,6 @@
 	const tabs = [
 		{ href: '/', label: 'Feed', icon: '❝' },
 		{ href: '/trending', label: 'Trending', icon: '↗' },
-		{ href: '/submit', label: 'Submit', icon: '＋' },
 		{ href: '/settings', label: 'Settings', icon: '⚙' }
 	];
 </script>

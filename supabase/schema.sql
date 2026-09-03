@@ -1,5 +1,9 @@
--- qq schema: authors, quotes, likes, and supporting RPCs.
+-- qq schema: authors, quotes, likes, tags, and supporting RPCs.
 -- Run this in the Supabase SQL editor (or via `supabase db push`).
+--
+-- Content (authors, quotes, tags) is populated only by system processes
+-- (the ZenQuotes ingestion cron, running as the service role) — end users
+-- can read everything but can only write their own likes.
 
 create extension if not exists "pgcrypto";
 
@@ -18,8 +22,7 @@ create table quotes (
   id uuid primary key default gen_random_uuid(),
   text text not null,
   author_id uuid not null references authors(id) on delete cascade,
-  submitted_by uuid references auth.users(id) on delete set null,
-  source text not null default 'user' check (source in ('user', 'zenquotes')),
+  source text not null default 'zenquotes' check (source in ('zenquotes', 'manual')),
   created_at timestamptz not null default now(),
   unique (author_id, text)
 );
@@ -31,29 +34,43 @@ create table likes (
   primary key (user_id, quote_id)
 );
 
+create table tags (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  slug text not null unique
+);
+
+create table quote_tags (
+  quote_id uuid not null references quotes(id) on delete cascade,
+  tag_id uuid not null references tags(id) on delete cascade,
+  primary key (quote_id, tag_id)
+);
+
 create index quotes_author_id_idx on quotes(author_id);
 create index likes_quote_id_idx on likes(quote_id);
+create index quote_tags_tag_id_idx on quote_tags(tag_id);
 
 -- RLS
 alter table authors enable row level security;
 alter table quotes enable row level security;
 alter table likes enable row level security;
+alter table tags enable row level security;
+alter table quote_tags enable row level security;
 
+-- Content is publicly readable; only the service role (ingestion cron) writes it.
 create policy "authors are publicly readable" on authors for select using (true);
 create policy "quotes are publicly readable" on quotes for select using (true);
-create policy "likes are publicly readable" on likes for select using (true);
+create policy "tags are publicly readable" on tags for select using (true);
+create policy "quote_tags are publicly readable" on quote_tags for select using (true);
 
-create policy "authenticated users can submit quotes" on quotes
-  for insert to authenticated with check (submitted_by = auth.uid());
+-- Likes are the only user-writable data.
+create policy "likes are publicly readable" on likes for select using (true);
 
 create policy "users can like as themselves" on likes
   for insert to authenticated with check (user_id = auth.uid());
 
 create policy "users can unlike their own likes" on likes
   for delete to authenticated using (user_id = auth.uid());
-
-create policy "anyone can create an author" on authors
-  for insert to authenticated with check (true);
 
 -- Trending: quotes ranked by likes in the last 7 days.
 create or replace function trending_quotes(max_rows int default 25)
@@ -67,8 +84,8 @@ language sql stable as $$
   limit max_rows
 $$;
 
--- Find-or-create an author by name (used when submitting a quote, and by the
--- ZenQuotes ingestion job, both via the service role or an authenticated user).
+-- Find-or-create an author by name. Used only by the ZenQuotes ingestion
+-- job (service role) and the seed script.
 create or replace function get_or_create_author(author_name text)
 returns authors
 language plpgsql as $$
@@ -96,6 +113,36 @@ begin
 end;
 $$;
 
+-- Attach a set of tag names to a quote, creating tags as needed. Used only
+-- by the ingestion job (service role) and the seed script.
+create or replace function add_quote_tags(target_quote_id uuid, tag_names text[])
+returns void
+language plpgsql as $$
+declare
+  tag_name text;
+  tag_slug text;
+  tag_id uuid;
+begin
+  foreach tag_name in array tag_names loop
+    tag_name := trim(tag_name);
+    if tag_name = '' then
+      continue;
+    end if;
+
+    select id into tag_id from tags where lower(name) = lower(tag_name) limit 1;
+    if not found then
+      tag_slug := lower(regexp_replace(tag_name, '[^a-zA-Z0-9]+', '-', 'g'));
+      insert into tags (name, slug) values (tag_name, tag_slug)
+      on conflict (slug) do update set name = excluded.name
+      returning id into tag_id;
+    end if;
+
+    insert into quote_tags (quote_id, tag_id) values (target_quote_id, tag_id)
+    on conflict do nothing;
+  end loop;
+end;
+$$;
+
 -- One random quote, for daily notifications.
 create or replace function random_quote()
 returns table (text text, author_name text)
@@ -108,5 +155,6 @@ language sql stable as $$
 $$;
 
 grant execute on function trending_quotes(int) to anon, authenticated;
-grant execute on function get_or_create_author(text) to authenticated, service_role;
+grant execute on function get_or_create_author(text) to service_role;
+grant execute on function add_quote_tags(uuid, text[]) to service_role;
 grant execute on function random_quote() to anon, authenticated;

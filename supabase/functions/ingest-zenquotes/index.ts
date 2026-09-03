@@ -3,6 +3,8 @@
 // endpoint — /api/quotes returns ~50 random quotes per call — so this job is
 // designed to run repeatedly (e.g. hourly) via Supabase's pg_cron + pg_net,
 // gradually building up the library while deduping on (author, text).
+// ZenQuotes doesn't supply subject tags, so ingested quotes land untagged;
+// tagging is a separate curation step (see add_quote_tags in schema.sql).
 //
 // Deploy: supabase functions deploy ingest-zenquotes --no-verify-jwt
 // Schedule: see supabase/cron.sql

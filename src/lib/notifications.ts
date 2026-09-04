@@ -22,8 +22,26 @@ const FALLBACK = {
   author: 'Socrates',
 }
 
+const CHANNEL_ID = 'daily-quote'
+
 export function notificationsAvailable(): boolean {
   return Capacitor.isNativePlatform()
+}
+
+/**
+ * Android caches channel settings (including sound) per channelId the first
+ * time it's created — must exist before scheduling. Registered once at
+ * startup alongside the tap handler.
+ */
+export async function registerNotificationChannel(): Promise<void> {
+  if (!notificationsAvailable()) return
+  await LocalNotifications.createChannel({
+    id: CHANNEL_ID,
+    name: 'Daily Quote',
+    description: 'Daily quote of the day notification',
+    sound: 'qq_notify.mp3',
+    importance: 4,
+  })
 }
 
 /**
@@ -75,6 +93,8 @@ export async function scheduleDaily(
         title: `qotd · ${date}`,
         body: `“${quote.text}” — ${quote.author.name}`,
         extra: { quoteId: quote.id },
+        channelId: CHANNEL_ID,
+        sound: 'qq_notify.mp3',
         schedule: {
           at: new Date(y, m - 1, d, hour, minute),
           allowWhileIdle: true,

@@ -4,6 +4,7 @@ import { StatusBar, Style } from '@capacitor/status-bar'
 import { defineCustomElements as initJeepSqlite } from 'jeep-sqlite/loader'
 import {
   getDailyTime,
+  registerNotificationChannel,
   registerNotificationTapHandler,
   scheduleDaily,
 } from '$lib/notifications'
@@ -30,6 +31,7 @@ if (Capacitor.isNativePlatform()) {
   })
 
   registerNotificationTapHandler()
+  registerNotificationChannel()
 
   // Re-top-up the notification window on every app launch: scheduleDaily()
   // only ever schedules real quote_of_the_day pairings that already exist

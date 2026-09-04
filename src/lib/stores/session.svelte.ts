@@ -17,6 +17,11 @@ let user = $state<User | null>(null)
 let authReady = $state(false)
 let mergedThisSession = false
 let socialLoginReady: Promise<void> | null = null
+// Set right before requesting a magic link so the web redirect flow (which
+// has no explicit callback of its own — Supabase's detectSessionInUrl
+// consumes the tokens silently) can still tell a fresh sign-in apart from
+// SIGNED_IN firing on ordinary session restore at app boot.
+let awaitingEmailOtpSignIn = false
 
 /**
  * Identity for likes/downloads without any auth: on native, Capacitor's
@@ -94,7 +99,13 @@ supabase.auth.getSession().then(({ data, error }) => {
 supabase.auth.onAuthStateChange((event, session) => {
   // console.debug('[auth] state change', event, { userId: session?.user?.id ?? null, })
   user = session?.user ?? null
-  if (event === 'SIGNED_IN') mergeDeviceOnce()
+  if (event === 'SIGNED_IN') {
+    mergeDeviceOnce()
+    if (awaitingEmailOtpSignIn) {
+      awaitingEmailOtpSignIn = false
+      window.umami?.track('sign_in', { provider: 'email' })
+    }
+  }
   if (event === 'SIGNED_OUT') mergedThisSession = false
 })
 
@@ -120,6 +131,8 @@ export async function signInWithEmailOtp(email: string): Promise<void> {
     console.error('[auth] signInWithOtp failed', error)
     throw error
   }
+  awaitingEmailOtpSignIn = true
+  window.umami?.track('magic_link_sent')
 }
 
 if (Capacitor.isNativePlatform()) {
@@ -129,9 +142,12 @@ if (Capacitor.isNativePlatform()) {
     const access_token = params.get('access_token')
     const refresh_token = params.get('refresh_token')
     if (!access_token || !refresh_token) return
-    supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
-      if (error) console.error('[auth] setSession from deep link failed', error)
-    })
+    supabase.auth
+      .setSession({ access_token, refresh_token })
+      .then(({ error }) => {
+        if (error)
+          console.error('[auth] setSession from deep link failed', error)
+      })
   })
 }
 
@@ -149,6 +165,7 @@ export async function signInWithGoogle(): Promise<void> {
     token: result.idToken,
   })
   if (error) throw error
+  window.umami?.track('sign_in', { provider: 'google' })
 }
 
 export async function signInWithApple(): Promise<void> {
@@ -162,10 +179,12 @@ export async function signInWithApple(): Promise<void> {
     token: result.idToken,
   })
   if (error) throw error
+  window.umami?.track('sign_in', { provider: 'apple' })
 }
 
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut()
+  window.umami?.track('sign_out')
 }
 
 export const auth = {

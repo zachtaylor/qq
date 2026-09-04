@@ -55,6 +55,11 @@
     }
     activeIndex = index
     history.pushState(history.state, '', TAB_ORDER[index])
+    // This tab switch bypasses SvelteKit's router (see comment on
+    // activeIndex above), so it never reaches root +layout.svelte's
+    // afterNavigate — track it explicitly instead (autotrack is disabled
+    // there specifically to avoid double-counting this pushState call).
+    window.umami?.track((props) => ({ ...props, url: TAB_ORDER[index] }))
     lastTapTime = 0
     lastTapIndex = -1
   }

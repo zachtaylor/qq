@@ -247,6 +247,7 @@ export async function recordDownload(
   localdb.bumpDownloadsCount(quoteId)
   localdb.recordLocalDownload(quoteId, style)
   userContentCache.invalidate()
+  window.umami?.track('download', { quote_id: quoteId, style })
 }
 
 export async function fetchDownloadHistory(): Promise<Download[]> {
@@ -312,6 +313,7 @@ export async function setLiked(quoteId: string, liked: boolean): Promise<void> {
   }
   localdb.setCachedLiked(quoteId, liked)
   userContentCache.invalidate()
+  window.umami?.track(liked ? 'like' : 'unlike', { quote_id: quoteId })
 }
 
 export async function fetchQuotesByTag(tagSlug: string): Promise<Quote[]> {

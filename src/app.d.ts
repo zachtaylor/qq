@@ -8,6 +8,17 @@ declare global {
     // interface PageState {}
     // interface Platform {}
   }
+
+  interface Window {
+    umami?: {
+      track(
+        payload?:
+          | Record<string, unknown>
+          | ((props: Record<string, unknown>) => Record<string, unknown>),
+      ): void
+      track(eventName: string, data?: Record<string, unknown>): void
+    }
+  }
 }
 
 export {}

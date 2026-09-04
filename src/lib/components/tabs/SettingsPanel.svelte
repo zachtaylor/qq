@@ -182,20 +182,20 @@
         everything works on this device without an account.
       </p>
       <div class="mb-3 flex flex-col gap-2 sm:flex-row">
-        <button
+        <!-- <button
           onclick={onGoogle}
           disabled={authBusy}
           class="flex-1 rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 disabled:opacity-50"
         >
           Continue with Google
-        </button>
-        <button
+        </button> -->
+        <!-- <button
           onclick={onApple}
           disabled={authBusy}
           class="flex-1 rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 disabled:opacity-50"
         >
           Continue with Apple
-        </button>
+        </button> -->
       </div>
       <div class="flex items-center gap-2">
         <input
@@ -212,9 +212,9 @@
           Email me a link
         </button>
       </div>
-    {/if}
-    {#if authStatus}
-      <p class="mt-2 text-sm text-stone-500">{authStatus}</p>
+      {#if authStatus}
+        <p class="mt-2 text-sm text-stone-500">{authStatus}</p>
+      {/if}
     {/if}
   </section>
 

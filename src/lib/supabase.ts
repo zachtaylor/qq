@@ -7,10 +7,13 @@ import {
 
 // Magic-link/OTP redirects land on a real browser URL with the session in
 // the query/hash only on web — Capacitor opens that link in an external
-// browser, not the app's webview, so there's no URL for the app to detect
-// a session from there (that flow would need a native deep link handler
-// instead, which doesn't exist yet). Detecting on native would just parse
-// the app's own irrelevant location and never see the tokens.
+// browser, not the app's webview, so there's no URL here for the app to
+// detect a session from. Native instead redirects to a custom URL scheme
+// (dev.taylz.qq://login-callback) that the OS hands back to the app via
+// Capacitor's appUrlOpen event; the tokens are pulled from that URL and
+// applied with setSession() in session.svelte.ts. Detecting on native
+// would just parse the app's own irrelevant location and never see the
+// tokens.
 const detectSessionInUrl = !Capacitor.isNativePlatform()
 
 /**

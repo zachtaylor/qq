@@ -11,9 +11,9 @@ read author profiles, get a daily local notification with a random quote.
   the device; there's no server runtime at all in production.
 - **TailwindCSS 4** via `@tailwindcss/vite` — utility classes only, no
   component library.
-- **Capacitor** — wraps the SvelteKit static build for Android (iOS platform
-  was never added; `/ios` is gitignored so `npx cap add ios` regenerates it
-  cleanly if needed).
+- **Capacitor** — wraps the SvelteKit static build for both Android and
+  iOS. Both `/android` and `/ios` are tracked in git, not gitignored or
+  regenerated on demand.
 - **Supabase** — Postgres + auth + RLS + Edge Functions + pg_cron. Chosen
   over Firebase/local-only because likes/trending need a shared backend
   across users, and Postgres RLS makes "everyone reads, nobody but the

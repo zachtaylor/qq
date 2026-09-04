@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core'
+import { App } from '@capacitor/app'
 import { Device } from '@capacitor/device'
 import { SocialLogin } from '@capgo/capacitor-social-login'
 import type { User } from '@supabase/supabase-js'
@@ -97,17 +98,41 @@ supabase.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_OUT') mergedThisSession = false
 })
 
+// Web opens the magic link in the same browser tab, so a plain https
+// origin works — Supabase's detectSessionInUrl picks the tokens out of the
+// resulting redirect. Native opens it in an external browser/mail app
+// instead, which can't reach the app's webview at all, so it needs a
+// custom URL scheme the OS can hand back to the app (see the
+// android:scheme intent-filter and CFBundleURLTypes entry) — handled by
+// the appUrlOpen listener below.
+const EMAIL_REDIRECT_URL = Capacitor.isNativePlatform()
+  ? 'dev.taylz.qq://login-callback'
+  : window.location.origin
+
 /** Sends a magic link to sign in or sign up by email. */
 export async function signInWithEmailOtp(email: string): Promise<void> {
-  // console.debug('[auth] signInWithEmailOtp', { email, redirectTo: window.location.origin, })
+  // console.debug('[auth] signInWithEmailOtp', { email, redirectTo: EMAIL_REDIRECT_URL, })
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.origin },
+    options: { emailRedirectTo: EMAIL_REDIRECT_URL },
   })
   if (error) {
     console.error('[auth] signInWithOtp failed', error)
     throw error
   }
+}
+
+if (Capacitor.isNativePlatform()) {
+  App.addListener('appUrlOpen', ({ url }) => {
+    if (!url.startsWith(EMAIL_REDIRECT_URL)) return
+    const params = new URL(url.replace('#', '?')).searchParams
+    const access_token = params.get('access_token')
+    const refresh_token = params.get('refresh_token')
+    if (!access_token || !refresh_token) return
+    supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
+      if (error) console.error('[auth] setSession from deep link failed', error)
+    })
+  })
 }
 
 export async function signInWithGoogle(): Promise<void> {

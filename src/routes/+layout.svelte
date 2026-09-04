@@ -27,11 +27,21 @@
   umamiScript.dataset.websiteId = PUBLIC_UMAMI_WEBSITE_ID
   umamiScript.dataset.tag = Capacitor.getPlatform()
   umamiScript.dataset.autoTrack = 'false'
+  // `defer` means window.umami isn't defined until this load fires — the
+  // very first afterNavigate (the initial 'enter' navigation) runs long
+  // before that, so window.umami?.track() below would silently no-op on a
+  // quick open-then-close. Firing the first pageview from onload instead
+  // guarantees it's sent as soon as the tracker actually exists.
+  umamiScript.onload = () => {
+    window.umami?.track((props) => ({ ...props, url: page.url.pathname }))
+  }
   document.head.appendChild(umamiScript)
 
-  // Covers real SvelteKit navigations (initial load included, since
-  // autotrack is off and would otherwise never fire for it).
-  afterNavigate(() => {
+  // Covers subsequent real SvelteKit navigations. The initial 'enter'
+  // navigation is skipped here since umamiScript.onload above already
+  // covers it (and typically fires first anyway).
+  afterNavigate((navigation) => {
+    if (navigation.type === 'enter') return
     window.umami?.track((props) => ({ ...props, url: page.url.pathname }))
   })
 

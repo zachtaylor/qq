@@ -1,4 +1,4 @@
-<img src="resources/icon.png" alt="qq icon" width="96" height="96">
+<div align="center"><img src="resources/icon.png" alt="qq icon" width="96" height="96"></div>
 
 # qq
 

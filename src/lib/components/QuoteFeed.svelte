@@ -18,6 +18,7 @@
     feedKey,
     active = true,
     scrollToTopSignal = 0,
+    refreshSignal = 0,
   }: {
     load: () => Promise<Quote[]>
     /** Like a page load function: an async, local-only read (e.g. straight
@@ -40,6 +41,9 @@
     /** Bumped by the parent (tab bar) when this tab's already-active button
      *  is clicked again, to scroll back to the top. */
     scrollToTopSignal?: number
+    /** Bumped by the parent (tab bar) when this tab's already-active button
+     *  is double-tapped, to force a refresh. */
+    refreshSignal?: number
   } = $props()
 
   const cached = feedKey ? feedCache.get(feedKey) : undefined
@@ -163,6 +167,13 @@
     if (scrollToTopSignal === scrollToTopAttempted) return
     scrollToTopAttempted = scrollToTopSignal
     scrollEl?.scrollTo({ top: 0, behavior: 'smooth' })
+  })
+
+  let refreshSignalAttempted = 0
+  $effect(() => {
+    if (refreshSignal === refreshSignalAttempted) return
+    refreshSignalAttempted = refreshSignal
+    if (active) refresh()
   })
 
   // The feed tab stays mounted while the user visits a quote detail page

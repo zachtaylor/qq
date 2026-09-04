@@ -9,11 +9,13 @@
     dragX,
     settled,
     scrollToTopSignal,
+    refreshSignal,
   }: {
     activeIndex: number
     dragX: number
     settled: boolean
     scrollToTopSignal: number
+    refreshSignal: number
   } = $props()
 
   let settingsScrollEl: HTMLDivElement | undefined = $state()
@@ -37,10 +39,10 @@
       <DayFeed active={activeIndex === 0} {scrollToTopSignal} />
     </div>
     <div class="h-full w-full shrink-0">
-      <RandomFeed active={activeIndex === 1} {scrollToTopSignal} />
+      <RandomFeed active={activeIndex === 1} {scrollToTopSignal} {refreshSignal} />
     </div>
     <div class="h-full w-full shrink-0">
-      <TrendingFeed active={activeIndex === 2} {scrollToTopSignal} />
+      <TrendingFeed active={activeIndex === 2} {scrollToTopSignal} {refreshSignal} />
     </div>
     <div bind:this={settingsScrollEl} class="h-full w-full shrink-0 overflow-y-auto">
       <div class="mx-auto max-w-lg px-4 pt-6 pb-24 lg:max-w-4xl">

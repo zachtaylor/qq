@@ -34,14 +34,29 @@
   let settled = $state(true)
   let contentEl: HTMLDivElement | undefined = $state()
   let scrollToTopSignal = $state(0)
+  let refreshSignal = $state(0)
+  const DOUBLE_TAP_MS = 400
+  let lastTapTime = 0
+  let lastTapIndex = -1
 
   function selectTab(index: number) {
     if (index === activeIndex) {
-      scrollToTopSignal++
+      const now = Date.now()
+      if (lastTapIndex === index && now - lastTapTime < DOUBLE_TAP_MS) {
+        refreshSignal++
+        lastTapTime = 0
+        lastTapIndex = -1
+      } else {
+        scrollToTopSignal++
+        lastTapTime = now
+        lastTapIndex = index
+      }
       return
     }
     activeIndex = index
     history.pushState(history.state, '', TAB_ORDER[index])
+    lastTapTime = 0
+    lastTapIndex = -1
   }
 
   function onTouchStart(e: TouchEvent) {
@@ -127,7 +142,7 @@
   ontouchend={onTouchEnd}
   ontouchcancel={onTouchEnd}
 >
-  <TabStrip {activeIndex} {dragX} {settled} {scrollToTopSignal} />
+  <TabStrip {activeIndex} {dragX} {settled} {scrollToTopSignal} {refreshSignal} />
 </div>
 
 <TabBar {activeIndex} onSelect={(i) => selectTab(i)} />

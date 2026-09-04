@@ -5,7 +5,12 @@
   let {
     active = true,
     scrollToTopSignal = 0,
-  }: { active?: boolean; scrollToTopSignal?: number } = $props()
+    refreshSignal = 0,
+  }: {
+    active?: boolean
+    scrollToTopSignal?: number
+    refreshSignal?: number
+  } = $props()
 </script>
 
 <QuoteFeed
@@ -16,4 +21,5 @@
   feedKey="random"
   {active}
   {scrollToTopSignal}
+  {refreshSignal}
 />

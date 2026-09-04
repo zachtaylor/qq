@@ -49,7 +49,7 @@
 {#if hideChrome}
   {@render children()}
 {:else}
-  <main class="mx-auto min-h-screen max-w-lg px-4 pt-6 pb-6 lg:max-w-4xl">
+  <main class="mx-auto min-h-screen max-w-lg px-4 py-6 lg:max-w-4xl">
     {@render children()}
   </main>
 {/if}

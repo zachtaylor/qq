@@ -66,9 +66,7 @@
   }
 </script>
 
-<div
-  class="mx-auto min-h-screen max-w-lg px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-6 lg:max-w-4xl"
->
+<div class="mx-auto h-full max-w-lg overflow-y-auto px-4 py-6 lg:max-w-4xl">
   {#if quote || loading}
     <div class="mb-8 flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">

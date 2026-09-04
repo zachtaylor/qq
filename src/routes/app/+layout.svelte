@@ -138,6 +138,7 @@
 <div
   bind:this={contentEl}
   role="group"
+  class="h-full"
   ontouchstart={onTouchStart}
   ontouchend={onTouchEnd}
   ontouchcancel={onTouchEnd}

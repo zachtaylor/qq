@@ -219,16 +219,16 @@
 </script>
 
 {#if loading}
-  <div class="flex h-screen items-center justify-center">
+  <div class="flex h-full items-center justify-center">
     <p class="text-sm text-stone-400">Loading…</p>
   </div>
 {:else if error}
-  <div class="flex h-screen items-center justify-center">
+  <div class="flex h-full items-center justify-center">
     <p class="text-sm text-red-500">Failed to load: {error.message}</p>
   </div>
 {:else}
   {#if quotes.length === 0}
-    <div class="flex h-screen items-center justify-center">
+    <div class="flex h-full items-center justify-center">
       <p class="text-sm text-stone-400">{empty}</p>
     </div>
   {:else}
@@ -240,7 +240,7 @@
       ontouchmove={onTouchMove}
       ontouchend={onTouchEnd}
       ontouchcancel={onTouchEnd}
-      class="relative h-screen snap-y snap-mandatory overflow-y-scroll overscroll-y-contain"
+      class="relative h-full snap-y snap-mandatory overflow-y-scroll overscroll-y-contain"
     >
       {#if pullDistance > 0 || refreshing}
         <div
@@ -256,7 +256,7 @@
       {/if}
       {#each quotes as quote, i (quote.id)}
         <section
-          class="flex h-screen snap-start snap-always flex-col items-center justify-center px-6 pb-24"
+          class="flex h-full snap-start snap-always flex-col items-center justify-center px-6 pb-24"
         >
           <div class="flex w-full max-w-md flex-col items-center text-center">
             {#if label}

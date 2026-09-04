@@ -27,7 +27,7 @@
   })
 </script>
 
-<div class="h-screen overflow-hidden">
+<div class="h-full overflow-hidden">
   <div
     class="flex h-full w-full"
     style="transform: translateX(calc(-{activeIndex *

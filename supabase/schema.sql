@@ -207,7 +207,15 @@ create policy "users can record a download as themselves" on downloads
 -- counts. liked_by_me is resolved server-side from p_device_id (or
 -- auth.uid() when signed in) instead of shipping the full likes table
 -- rows down to the client to compute it themselves.
+--
+-- Ranking uses an exponentially time-decayed score per event (half-life
+-- 24h) rather than a flat count over the 7-day window, so a quote that
+-- got most of its likes/downloads in the last few hours outranks one
+-- with the same 7-day total spread evenly across the week. recent_like_
+-- count/recent_download_count stay as plain counts (still shown/used
+-- elsewhere) — only the `order by` uses the decayed score.
 drop function if exists trending_quotes(int);
+drop function if exists trending_quotes(int, text);
 
 create or replace function trending_quotes(max_rows int default 25, p_device_id text default null)
 returns table (
@@ -264,8 +272,22 @@ language sql stable as $$
     where created_at > now() - interval '7 days'
     group by quote_id
   ) d on d.quote_id = q.id
+  left join (
+    select quote_id,
+      sum(exp(-extract(epoch from (now() - created_at)) / 86400 * ln(2) / 1)) as score
+    from likes
+    where created_at > now() - interval '7 days'
+    group by quote_id
+  ) ls on ls.quote_id = q.id
+  left join (
+    select quote_id,
+      sum(exp(-extract(epoch from (now() - created_at)) / 86400 * ln(2) / 1)) as score
+    from downloads
+    where created_at > now() - interval '7 days'
+    group by quote_id
+  ) ds on ds.quote_id = q.id
   where coalesce(l.like_count, 0) > 0 or coalesce(d.download_count, 0) > 0
-  order by coalesce(l.like_count, 0) * 3 + coalesce(d.download_count, 0) desc
+  order by coalesce(ls.score, 0) * 3 + coalesce(ds.score, 0) desc
   limit max_rows
 $$;
 

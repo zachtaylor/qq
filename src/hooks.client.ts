@@ -2,6 +2,11 @@ import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { defineCustomElements as initJeepSqlite } from 'jeep-sqlite/loader'
+import {
+  getDailyTime,
+  registerNotificationTapHandler,
+  scheduleDaily,
+} from '$lib/notifications'
 
 // Must run before any load() calls into localdb.ts, which awaits
 // customElements.whenDefined('jeep-sqlite') — hooks.client.ts runs at
@@ -23,6 +28,15 @@ if (Capacitor.isNativePlatform()) {
     if (canGoBack) history.back()
     else App.exitApp()
   })
+
+  registerNotificationTapHandler()
+
+  // Re-top-up the notification window on every app launch: scheduleDaily()
+  // only ever schedules real quote_of_the_day pairings that already exist
+  // (see supabase/cron.sql), so the rolling window needs a periodic nudge
+  // forward rather than being computed once and left to run out.
+  const daily = getDailyTime()
+  if (daily) scheduleDaily(daily.hour, daily.minute)
 
   // App is light-mode only, so the status bar should show dark icons/text
   // — `Style.Light` is Capacitor's name for "content is dark, for use on a

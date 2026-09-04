@@ -101,6 +101,10 @@
   async function apply() {
     status = ''
     if (enabled) {
+      const previous = getDailyTime()
+      if (previous && (previous.hour !== hour || previous.minute !== minute)) {
+        await cancelDaily()
+      }
       const ok = await scheduleDaily(hour, minute)
       status = ok ? 'Daily quote scheduled.' : 'Notification permission denied.'
     } else {

@@ -34,11 +34,14 @@ function loggingFetch(
   console.debug(`[supabase] -> ${method} ${path}`)
   return fetch(input, init).then(
     (res) => {
-      // console.debug( `[supabase] <- ${method} ${path} ${res.status} (${(performance.now() - start).toFixed(0)}ms)`, )
+      const status = res.status
+      const t = (performance.now() - start).toFixed(0)
+      console.debug(`[supabase] <- ${method} ${path} ${status} (${t}ms)`)
       return res
     },
     (err) => {
-      // console.debug( `[supabase] xx ${method} ${path} failed (${(performance.now() - start).toFixed(0)}ms)`, err, )
+      const t = (performance.now() - start).toFixed(0)
+      console.debug(`[supabase] xx ${method} ${path} failed (${t}ms)`, err)
       throw err
     },
   )
@@ -49,6 +52,6 @@ export const supabase = createClient(
   PUBLIC_SUPABASE_ANON_KEY,
   {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl },
-    global: { fetch: loggingFetch },
+    // global: { fetch: loggingFetch },
   },
 )

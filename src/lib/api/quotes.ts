@@ -424,3 +424,49 @@ export async function randomQuote(): Promise<{
   const d = data as { text: string; author_name: string }
   return { text: d.text, author: d.author_name }
 }
+
+/** YYYY-MM-DD for `daysAhead` days after today, in local time. */
+function dateDaysAhead(daysAhead: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + daysAhead)
+  return d.toLocaleDateString('en-CA')
+}
+
+/**
+ * Today's quote_of_the_day plus up to `days - 1` upcoming days, as
+ * (date, quote) pairs — for scheduling the daily notification rolling
+ * window (see src/lib/notifications.ts)
+ */
+export async function fetchUpcomingQuoteOfDay(
+  days: number,
+): Promise<{ date: string; quote: Quote }[]> {
+  const dates = Array.from({ length: days }, (_, i) => dateDaysAhead(i))
+  if (network.offline) {
+    const out: { date: string; quote: Quote }[] = []
+    for (const date of dates) {
+      const cached = await localdb.getCachedQuoteOfDay(date)
+      if (cached) out.push({ date, quote: cached })
+    }
+    return out
+  }
+
+  const { data, error } = await supabase
+    .from('quote_of_the_day')
+    .select(`date, quote:quotes(${QUOTE_SELECT})`)
+    .in('date', dates)
+  if (error) throw error
+
+  const byDate = new Map<string, Quote>()
+  for (const row of data as unknown as { date: string; quote: any }[]) {
+    if (!row.quote) continue
+    const quote = toQuote(row.quote)
+    byDate.set(row.date, quote)
+    localdb.cacheQuoteOfDay(row.date, quote)
+  }
+  const quotes = [...byDate.values()]
+  if (quotes.length > 0) localdb.cacheQuotes(quotes)
+
+  return dates
+    .filter((d) => byDate.has(d))
+    .map((date) => ({ date, quote: byDate.get(date)! }))
+}

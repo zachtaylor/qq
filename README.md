@@ -1,4 +1,4 @@
-<div align="center"><img src="resources/icon.png" alt="qq icon" width="96" height="96"></div>
+<div align="center"><a href="https://qq.taylz.dev"><img src="resources/icon.png" alt="qq icon" width="96" height="96"></a></div>
 
 # qq
 

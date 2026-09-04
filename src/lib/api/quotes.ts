@@ -4,7 +4,7 @@ import { network } from '$lib/stores/network.svelte'
 import { userContentCache } from '$lib/stores/userContentCache.svelte'
 import * as localdb from '$lib/localdb'
 import type { CardStyle } from '$lib/shareCard'
-import type { Download, Quote, Tag } from '$lib/types'
+import type { Download, LikedQuote, Quote, Tag } from '$lib/types'
 
 const QUOTE_SELECT =
   'id, text, author_id, created_at, like_count, downloads_count, author:authors(name, slug), likes(device_id, user_id), quote_tags(tag:tags(id, name, slug))'
@@ -338,7 +338,7 @@ export async function fetchQuotesByTag(tagSlug: string): Promise<Quote[]> {
   return quotes
 }
 
-export async function fetchLikedQuotes(): Promise<Quote[]> {
+export async function fetchLikedQuotes(): Promise<LikedQuote[]> {
   const userId = auth.userId
   const deviceId = auth.deviceId
   if (!userId && !deviceId) return []
@@ -350,6 +350,7 @@ export async function fetchLikedQuotes(): Promise<Quote[]> {
     .order('created_at', { ascending: false })
   if (likeErr) throw likeErr
   if (likeRows.length === 0) return []
+  const likedAtByQuote = new Map(likeRows.map((r) => [r.quote_id, r.created_at]))
   const order = new Map(likeRows.map((r, i) => [r.quote_id, i]))
   const { data, error } = await supabase
     .from('quotes')
@@ -362,7 +363,12 @@ export async function fetchLikedQuotes(): Promise<Quote[]> {
   const quotes = data.map(toQuote)
   quotes.sort((a, b) => order.get(a.id)! - order.get(b.id)!)
   localdb.cacheQuotes(quotes)
-  return quotes
+  const likes = quotes.map((quote) => ({
+    quote,
+    likedAt: likedAtByQuote.get(quote.id)!,
+  }))
+  localdb.cacheLikedQuotes(likes)
+  return likes
 }
 
 /**

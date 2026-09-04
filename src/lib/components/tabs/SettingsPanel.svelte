@@ -273,12 +273,13 @@
         <p class="text-sm text-stone-400">Quotes you like will show up here.</p>
       {:else}
         <ul class="divide-y divide-stone-100">
-          {#each likes.slice(0, 3) as quote (quote.id)}
+          {#each likes.slice(0, 3) as like (like.quote.id)}
             <li class="py-3">
               <QuoteRow
-                {quote}
-                tagQuoteText={active && claimQuoteText(quote.id)}
-                tagAuthor={active && claimAuthor(quote.author.slug)}
+                quote={like.quote}
+                timestamp={formatDate(like.likedAt)}
+                tagQuoteText={active && claimQuoteText(like.quote.id)}
+                tagAuthor={active && claimAuthor(like.quote.author.slug)}
               />
             </li>
           {/each}
@@ -309,10 +310,9 @@
                   text: download.quote.text,
                   author: download.quote.author,
                 }}
-                meta={formatDate(download.createdAt)}
+                timestamp={formatDate(download.createdAt)}
                 tagQuoteText={active && claimQuoteText(download.quoteId)}
-                tagAuthor={active &&
-                  claimAuthor(download.quote.author.slug)}
+                tagAuthor={active && claimAuthor(download.quote.author.slug)}
               />
             </li>
           {/each}

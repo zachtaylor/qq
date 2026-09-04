@@ -32,3 +32,8 @@ export interface Download {
   style: import('$lib/shareCard').CardStyle | null
   createdAt: string
 }
+
+export interface LikedQuote {
+  quote: Quote
+  likedAt: string
+}

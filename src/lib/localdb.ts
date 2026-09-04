@@ -4,7 +4,7 @@ import {
   SQLiteConnection,
   type SQLiteDBConnection,
 } from '@capacitor-community/sqlite'
-import type { Author, Download, Quote, Tag } from '$lib/types'
+import type { Author, Download, LikedQuote, Quote, Tag } from '$lib/types'
 import type { CardStyle } from '$lib/shareCard'
 
 const DB_NAME = 'qq'
@@ -64,7 +64,7 @@ const MIGRATIONS: string[][] = [
   ],
   // 2 -> 3: per-date quote-of-the-day pairing. The (date -> quote_id) pairing
   // never changes once assigned, so past dates can be served from here
-  // forever without a network round-trip; only today's is worth refreshing.
+  // forever without a network round-trip.
   [
     `CREATE TABLE IF NOT EXISTS quote_of_day (
 			date TEXT PRIMARY KEY,
@@ -78,6 +78,15 @@ const MIGRATIONS: string[][] = [
     `CREATE TABLE IF NOT EXISTS random_feed (
 			position INTEGER PRIMARY KEY,
 			quote_id TEXT NOT NULL
+		)`,
+  ],
+  // 4 -> 5: local like history, so the settings tab can show when each
+  // quote was liked without a network round-trip.
+  [
+    `CREATE TABLE IF NOT EXISTS liked_quotes (
+			quote_id TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			PRIMARY KEY (quote_id, created_at)
 		)`,
   ],
 ]
@@ -451,15 +460,44 @@ export async function bumpDownloadsCount(quoteId: string): Promise<void> {
   }
 }
 
-export async function getCachedLikedQuotes(): Promise<Quote[]> {
+export async function getCachedLikedQuotes(): Promise<LikedQuote[]> {
   if (!(await ready())) return []
-  const rows = (await query(
-    `SELECT * FROM quotes WHERE liked_by_me = 1 ORDER BY created_at DESC`,
+  const likeRows = (await query(
+    `SELECT quote_id, created_at FROM liked_quotes ORDER BY created_at DESC`,
   )) as any[]
-  const { tagsByQuote, authorsById } = await loadTagsAndAuthors(
-    rows.map((r) => r.id),
+  if (likeRows.length === 0) return []
+  const quoteIds = likeRows.map((r) => r.quote_id)
+  const { tagsByQuote, authorsById } = await loadTagsAndAuthors(quoteIds)
+  const quoteRows = (await query(
+    `SELECT * FROM quotes WHERE id IN (${quoteIds.map(() => '?').join(', ')})`,
+    quoteIds,
+  )) as any[]
+  const quotesById = new Map(
+    quoteRows.map((r) => [r.id, toQuote(r, tagsByQuote, authorsById)]),
   )
-  return rows.map((r) => toQuote(r, tagsByQuote, authorsById))
+  const result: LikedQuote[] = []
+  for (const row of likeRows) {
+    const quote = quotesById.get(row.quote_id)
+    if (!quote) continue
+    result.push({ quote, likedAt: row.created_at })
+  }
+  return result
+}
+
+/** Replaces the local like-history cache with a freshly fetched one from the server. */
+export async function cacheLikedQuotes(likes: LikedQuote[]): Promise<void> {
+  if (!(await ready())) return
+  try {
+    await run(`DELETE FROM liked_quotes`)
+    for (const l of likes) {
+      await run(
+        `INSERT OR REPLACE INTO liked_quotes (quote_id, created_at) VALUES (?, ?)`,
+        [l.quote.id, l.likedAt],
+      )
+    }
+  } catch (err) {
+    console.error('localdb: cacheLikedQuotes failed', err)
+  }
 }
 
 /** Reflects a like/unlike made through setLiked() in the local cache immediately, ahead of the network round-trip. */
@@ -473,6 +511,14 @@ export async function setCachedLiked(
       `UPDATE quotes SET liked_by_me = ?, like_count = like_count + ? WHERE id = ?`,
       [liked ? 1 : 0, liked ? 1 : -1, quoteId],
     )
+    if (liked) {
+      await run(
+        `INSERT OR REPLACE INTO liked_quotes (quote_id, created_at) VALUES (?, ?)`,
+        [quoteId, new Date().toISOString()],
+      )
+    } else {
+      await run(`DELETE FROM liked_quotes WHERE quote_id = ?`, [quoteId])
+    }
   } catch (err) {
     console.error('localdb: setCachedLiked failed', err)
   }

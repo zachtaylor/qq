@@ -4,12 +4,12 @@
 
   let {
     quote,
-    meta,
+    timestamp,
     tagQuoteText = true,
     tagAuthor = true,
   }: {
     quote: Pick<Quote, 'id' | 'text' | 'author'>
-    meta?: string
+    timestamp?: string
     /** Whether this row may claim the static quote-text-{id}/author-{slug}
      *  view-transition-names. A list can contain the same quote or author
      *  more than once (e.g. downloading a quote twice), and only one
@@ -38,6 +38,6 @@
     class="mt-1 text-xs text-stone-400"
     style={tagAuthor ? `view-transition-name: author-${quote.author.slug}` : ''}
   >
-    — {quote.author.name}{meta ? ` · ${meta}` : ''}
+    — {quote.author.name}{timestamp ? ` · ${timestamp}` : ''}
   </p>
 </a>

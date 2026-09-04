@@ -21,6 +21,15 @@
     return createTransitionKeyTracker()
   })
 
+  function formatDate(iso: string): string {
+    return new Date(iso).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  }
+
   // Run once per mount, not once per reactive change (e.g. network
   // connectivity flipping) — otherwise every offline/online toggle
   // re-fires fetchLikedQuotes(), thrashing the network.
@@ -50,9 +59,13 @@
   </p>
 {:else}
   <ul class="divide-y divide-stone-100">
-    {#each likes as quote (quote.id)}
+    {#each likes as like (like.quote.id)}
       <li class="py-3">
-        <QuoteRow {quote} tagAuthor={claimAuthor(quote.author.slug)} />
+        <QuoteRow
+          quote={like.quote}
+          timestamp={formatDate(like.likedAt)}
+          tagAuthor={claimAuthor(like.quote.author.slug)}
+        />
       </li>
     {/each}
   </ul>

@@ -1,18 +1,18 @@
-import type { Download, Quote } from '$lib/types'
+import type { Download, LikedQuote } from '$lib/types'
 import * as localdb from '$lib/localdb'
 
-let likes: Quote[] | undefined = $state(undefined)
+let likes: LikedQuote[] | undefined = $state(undefined)
 let downloads: Download[] | undefined = $state(undefined)
 let localLoadPromise: Promise<void> | null = null
 
 export const userContentCache = {
-  get likes(): Quote[] | undefined {
+  get likes(): LikedQuote[] | undefined {
     return likes
   },
   get downloads(): Download[] | undefined {
     return downloads
   },
-  setLikes(value: Quote[]): void {
+  setLikes(value: LikedQuote[]): void {
     likes = value
   },
   setDownloads(value: Download[]): void {

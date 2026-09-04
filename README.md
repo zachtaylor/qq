@@ -1,8 +1,14 @@
+<img src="resources/icon.png" alt="qq icon" width="96" height="96">
+
 # qq
 
 A quotation-sharing app: like quotes, browse trending, browse by subject
 tag, read author profiles, get a daily local notification with a random
-quote. Ships as a client-side SPA (web) and as a native Android app via
+quote.
+
+**Live:** [qq.taylz.dev](https://qq.taylz.dev)
+
+Ships as a client-side SPA (web) and as native Android and iOS apps via
 Capacitor, sharing one codebase.
 
 This is a real, actively-developed personal project and also a public code
@@ -16,8 +22,8 @@ below if you're here to evaluate the code rather than run the app.
   just serves the static build on-device.
 - **TailwindCSS 4** via `@tailwindcss/vite` — utility classes only, no
   component library.
-- **Capacitor** — wraps the static build for Android (local notifications,
-  device ID, native social login token exchange).
+- **Capacitor** — wraps the static build for Android and iOS (local
+  notifications, device ID, native social login token exchange).
 - **Supabase** — Postgres + auth + RLS + Edge Functions + pg_cron. Likes
   and trending need a shared backend across users; Postgres RLS enforces
   "everyone reads, nobody but the system writes content" declaratively.
@@ -69,14 +75,20 @@ pnpm check                        # svelte-kit sync + svelte-check
 pnpm build                        # static build → build/
 npx cap sync android               # copy build/ into the Android project
 npx cap run android                 # build + run on device/emulator
+npx cap sync ios                    # copy build/ into the iOS project
+npx cap run ios                     # build + run on device/simulator
 ```
 
 ## Mobile (Capacitor)
 
 ```sh
 pnpm build
+# then
 npx cap sync android
 npx cap run android
+# or
+npx cap sync ios
+npx cap run ios
 ```
 
 ---

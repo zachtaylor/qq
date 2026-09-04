@@ -54,7 +54,9 @@ export function registerNotificationTapHandler(): void {
     'localNotificationActionPerformed',
     (action) => {
       const quoteId = action.notification.extra?.quoteId
-      if (quoteId) goto(`/q/${quoteId}`)
+      if (!quoteId) return
+      window.umami?.track('daily_notification_tapped', { quote_id: quoteId })
+      goto(`/q/${quoteId}`)
     },
   )
 }

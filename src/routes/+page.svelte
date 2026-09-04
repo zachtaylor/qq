@@ -1,13 +1,3 @@
-<script lang="ts">
-  import { onMount } from 'svelte'
-  import { goto } from '$app/navigation'
-  import { Capacitor } from '@capacitor/core'
-
-  onMount(() => {
-    if (Capacitor.isNativePlatform()) goto('/app', { replaceState: true })
-  })
-</script>
-
 <svelte:head>
   <title>qq — quotes worth keeping</title>
 </svelte:head>

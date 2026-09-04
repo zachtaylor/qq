@@ -629,6 +629,35 @@ export async function getCachedQuoteOfDay(date: string): Promise<Quote | null> {
   return toQuote(quoteRows[0], tagsByQuote, authorsById)
 }
 
+/** Re-reads just the like/download count fields for a set of quotes, e.g. to
+ *  reconcile an in-memory feed's stale state after returning from a detail
+ *  page where a like or download happened (setLiked()/bumpDownloadsCount()
+ *  keep this table current). */
+export async function getQuoteCounters(
+  ids: string[],
+): Promise<
+  Map<string, { liked_by_me: boolean; like_count: number; downloads_count: number }>
+> {
+  const result = new Map<
+    string,
+    { liked_by_me: boolean; like_count: number; downloads_count: number }
+  >()
+  if (ids.length === 0 || !(await ready())) return result
+  const placeholders = ids.map(() => '?').join(',')
+  const rows = (await query(
+    `SELECT id, liked_by_me, like_count, downloads_count FROM quotes WHERE id IN (${placeholders})`,
+    ids,
+  )) as any[]
+  for (const row of rows) {
+    result.set(row.id, {
+      liked_by_me: !!row.liked_by_me,
+      like_count: row.like_count,
+      downloads_count: row.downloads_count,
+    })
+  }
+  return result
+}
+
 export async function getCachedQuote(id: string): Promise<Quote | null> {
   if (!(await ready())) return null
   const rows = (await query(`SELECT * FROM quotes WHERE id = ?`, [id])) as any[]

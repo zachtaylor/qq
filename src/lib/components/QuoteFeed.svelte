@@ -6,6 +6,8 @@
   import { fade } from 'svelte/transition'
   import { SvelteSet } from 'svelte/reactivity'
   import { tagQuoteTransition } from '$lib/viewTransition'
+  import { afterNavigate } from '$app/navigation'
+  import { getQuoteCounters } from '$lib/localdb'
 
   let {
     load,
@@ -161,6 +163,26 @@
     if (scrollToTopSignal === scrollToTopAttempted) return
     scrollToTopAttempted = scrollToTopSignal
     scrollEl?.scrollTo({ top: 0, behavior: 'smooth' })
+  })
+
+  // The feed tab stays mounted while the user visits a quote detail page
+  // (see app/+layout.svelte), so a like/download made there leaves this
+  // component's `quotes` array holding stale counters when the user
+  // navigates back. setLiked()/bumpDownloadsCount() keep localdb current as
+  // the source of truth, so re-read from there rather than a full reload
+  // (which would also re-roll random's ordering).
+  afterNavigate(({ to }) => {
+    if (!to?.url.pathname.startsWith('/app')) return
+    if (quotes.length === 0) return
+    getQuoteCounters(quotes.map((q) => q.id)).then((states) => {
+      for (const quote of quotes) {
+        const fresh = states.get(quote.id)
+        if (!fresh) continue
+        quote.liked_by_me = fresh.liked_by_me
+        quote.like_count = fresh.like_count
+        quote.downloads_count = fresh.downloads_count
+      }
+    })
   })
 
   let animatingIds = new SvelteSet<string>()

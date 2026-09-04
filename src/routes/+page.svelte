@@ -6,7 +6,7 @@
   class="flex min-h-screen flex-col items-center justify-center px-6 text-center"
 >
   <p class="mb-6 text-6xl text-accent">❝</p>
-  <h1 class="text-3xl font-bold text-stone-900">qq</h1>
+  <h1 class="text-3xl font-bold text-stone-900">qq Quotes</h1>
   <p class="mt-3 max-w-sm text-stone-500">
     A quiet feed of quotes worth keeping. Browse trending picks, follow your
     favorite authors, and get one delivered to you every day.

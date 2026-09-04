@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'dev.taylz.qq',
-  appName: 'qq',
+  appName: 'qq Quotes',
   webDir: 'build',
   plugins: {
     CapacitorSQLite: {

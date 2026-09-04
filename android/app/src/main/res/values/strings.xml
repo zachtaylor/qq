@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">qq</string>
-    <string name="title_activity_main">qq</string>
+    <string name="app_name">qq Quotes</string>
+    <string name="title_activity_main">qq Quotes</string>
     <string name="package_name">dev.taylz.qq</string>
     <string name="custom_url_scheme">dev.taylz.qq</string>
 </resources>

@@ -1,11 +1,64 @@
 @import 'tailwindcss';
 
 @theme {
-	--color-accent: #e11d48;
+  --color-accent: #e11d48;
+}
+
+@font-face {
+  font-family: 'Roboto Slab';
+  src: url('/fonts/roboto-slab.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Oswald';
+  src: url('/fonts/oswald.ttf') format('truetype');
+  font-weight: 200 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Caveat';
+  src: url('/fonts/caveat.ttf') format('truetype');
+  font-weight: 400 700;
+  font-display: swap;
 }
 
 html,
 body {
-	height: 100%;
-	background: #fafaf9;
+  height: 100%;
+  background: #fafaf9;
+}
+body {
+  padding-top: env(safe-area-inset-top);
+}
+
+@keyframes like-pop {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.5);
+  }
+  60% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-like-pop {
+  display: inline-block;
+  animation: like-pop 0.4s ease-out;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.18s;
+}
+
+::view-transition-group(*) {
+  animation-duration: 0.28s;
 }

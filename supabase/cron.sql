@@ -22,3 +22,19 @@ select cron.schedule(
 
 -- To inspect scheduled runs: select * from cron.job_run_details order by start_time desc limit 20;
 -- To unschedule: select cron.unschedule('ingest-zenquotes-hourly');
+
+-- Pre-assigns tomorrow's quote-of-the-day pairing a few hours ahead of
+-- UTC midnight, so the row always already exists by the time anyone's
+-- "today" rolls over — ensure_quote_of_the_day() is never invoked
+-- inline on a client request (it isn't even client-callable; clients
+-- read quote_of_the_day directly, see src/lib/api/quotes.ts). No
+-- net.http_post/service-role-key needed here, unlike the ingestion job
+-- above — it's a plain SQL function call, so pg_cron can invoke it
+-- directly.
+select cron.schedule(
+  'assign-quote-of-the-day',
+  '0 20 * * *', -- once a day, 20:00 UTC (4 hours ahead of the next date)
+  $$ select ensure_quote_of_the_day(current_date + 1); $$
+);
+
+-- To unschedule: select cron.unschedule('assign-quote-of-the-day');

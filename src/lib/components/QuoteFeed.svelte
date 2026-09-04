@@ -8,6 +8,8 @@
   import { tagQuoteTransition } from '$lib/viewTransition'
   import { afterNavigate } from '$app/navigation'
   import { getQuoteCounters } from '$lib/localdb'
+  import Heart from '@lucide/svelte/icons/heart'
+  import Download from '@lucide/svelte/icons/download'
 
   let {
     load,
@@ -322,25 +324,28 @@
                 aria-pressed={quote.liked_by_me}
                 aria-label="Like"
               >
-                <span
-                  class="text-2xl"
-                  class:animate-like-pop={animatingIds.has(quote.id)}
+                <Heart
+                  class="size-5 {animatingIds.has(quote.id)
+                    ? 'animate-like-pop'
+                    : ''}"
                   onanimationend={() => animatingIds.delete(quote.id)}
-                  >{quote.liked_by_me ? '♥' : '♡'}</span
-                >{quote.like_count}
+                  fill={quote.liked_by_me ? 'currentColor' : 'none'}
+                />{quote.like_count}
               </button>
               {#if network.offline}
                 <span
                   class="text-xl text-stone-300"
-                  aria-label="Share unavailable offline">⇪</span
+                  aria-label="Share unavailable offline"
                 >
+                  <Download class="size-5" />
+                </span>
               {:else}
                 <a
                   href="/share/{quote.id}"
                   class="flex items-center gap-2 text-lg text-stone-400 hover:text-stone-600"
                   aria-label="Share"
                 >
-                  <span class="text-xl">⇪</span>{quote.downloads_count}
+                  <Download class="size-5" />{quote.downloads_count}
                 </a>
               {/if}
             </div>

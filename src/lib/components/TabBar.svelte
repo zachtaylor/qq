@@ -1,9 +1,14 @@
 <script lang="ts">
+  import Calendar from '@lucide/svelte/icons/calendar'
+  import Dices from '@lucide/svelte/icons/dices'
+  import TrendingUp from '@lucide/svelte/icons/trending-up'
+  import Settings from '@lucide/svelte/icons/settings'
+
   const tabs = [
-    { label: 'Today', icon: '☀' },
-    { label: 'Random', icon: '❝' },
-    { label: 'Trending', icon: '↗' },
-    { label: 'Settings', icon: '⚙' },
+    { label: 'Today', icon: Calendar },
+    { label: 'Random', icon: Dices },
+    { label: 'Trending', icon: TrendingUp },
+    { label: 'Settings', icon: Settings },
   ]
 
   let {
@@ -30,7 +35,7 @@
           ? 'text-accent'
           : 'text-stone-500'}"
       >
-        <span class="text-lg leading-none">{tab.icon}</span>
+        <tab.icon class="size-5" strokeWidth={2} />
         {tab.label}
       </button>
     {/each}

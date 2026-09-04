@@ -38,6 +38,9 @@ importers:
       '@capgo/capacitor-social-login':
         specifier: ^8.5.5
         version: 8.5.5(@capacitor/core@8.5.1)
+      '@lucide/svelte':
+        specifier: ^1.40.0
+        version: 1.40.0(svelte@5.57.0)
       '@supabase/supabase-js':
         specifier: ^2.115.0
         version: 2.115.0
@@ -235,6 +238,11 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lucide/svelte@1.40.0':
+    resolution: {integrity: sha512-Uf0kxl48bLepYJDnXddrYX0/YuK2KnaF/tPm0zSZZEcEvrpJ9U8dPAFOC7LYATzjoNntwEAcugUXKZZ5/Gfo1Q==}
+    peerDependencies:
+      svelte: ^5
 
   '@noble/ciphers@1.3.0':
     resolution: {integrity: sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw==}
@@ -2195,6 +2203,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@lucide/svelte@1.40.0(svelte@5.57.0)':
+    dependencies:
+      svelte: 5.57.0
 
   '@noble/ciphers@1.3.0': {}
 

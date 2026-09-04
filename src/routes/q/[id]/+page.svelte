@@ -5,6 +5,8 @@
   import { network } from '$lib/stores/network.svelte'
   import QuoteList from '$lib/components/QuoteList.svelte'
   import type { PageProps } from './$types'
+  import Heart from '@lucide/svelte/icons/heart'
+  import Download from '@lucide/svelte/icons/download'
 
   let { data }: PageProps = $props()
 
@@ -98,24 +100,23 @@
             aria-pressed={liked}
             aria-label="Like"
           >
-            <span
-              class="text-base"
-              class:animate-like-pop={animateLike}
+            <Heart
+              class="size-4 {animateLike ? 'animate-like-pop' : ''}"
               onanimationend={() => (animateLike = false)}
-              >{liked ? '♥' : '♡'}</span
-            >{count}
+              fill={liked ? 'currentColor' : 'none'}
+            />{count}
           </button>
           {#if network.offline}
-            <span class="text-stone-300" aria-label="Share unavailable offline"
-              >⇪</span
-            >
+            <span class="text-stone-300" aria-label="Share unavailable offline">
+              <Download class="size-4" />
+            </span>
           {:else}
             <a
               href="/share/{quote.id}"
               class="flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-600"
               aria-label="Share"
             >
-              <span class="text-base">⇪</span>{quote.downloads_count}
+              <Download class="size-4" />{quote.downloads_count}
             </a>
           {/if}
         </div>

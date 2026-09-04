@@ -100,12 +100,16 @@
 
   async function apply() {
     status = ''
+    await cancelDaily()
+    const ok = await scheduleDaily(hour, minute)
+    status = ok ? 'Daily quote scheduled.' : 'Notification permission denied.'
+  }
+
+  async function onToggle() {
+    status = ''
     if (enabled) {
-      const previous = getDailyTime()
-      if (previous && (previous.hour !== hour || previous.minute !== minute)) {
-        await cancelDaily()
-      }
       const ok = await scheduleDaily(hour, minute)
+      enabled = ok
       status = ok ? 'Daily quote scheduled.' : 'Notification permission denied.'
     } else {
       await cancelDaily()
@@ -223,7 +227,12 @@
       </p>
     {:else}
       <label class="mb-3 flex items-center gap-2 text-sm text-stone-700">
-        <input type="checkbox" bind:checked={enabled} class="accent-accent" />
+        <input
+          type="checkbox"
+          bind:checked={enabled}
+          onchange={onToggle}
+          class="accent-accent"
+        />
         Send me a quote every day
       </label>
       {#if enabled}
@@ -245,13 +254,13 @@
           />
           <span class="text-stone-400">(24h, device local time)</span>
         </div>
+        <button
+          onclick={apply}
+          class="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white"
+        >
+          Save
+        </button>
       {/if}
-      <button
-        onclick={apply}
-        class="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white"
-      >
-        Save
-      </button>
       {#if status}
         <p class="mt-2 text-sm text-stone-500">{status}</p>
       {/if}

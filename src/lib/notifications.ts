@@ -92,9 +92,9 @@ export async function scheduleDaily(
       const [y, m, d] = date.split('-').map(Number)
       return {
         id: idForDate(date),
-        title: `qotd · ${date}`,
+        title: date,
         body: `“${quote.text}” — ${quote.author.name}`,
-        extra: { quoteId: quote.id },
+        extra: { quoteId: quote.id, qotd: date },
         channelId: CHANNEL_ID,
         sound: 'qq_notify.mp3',
         schedule: {
@@ -115,10 +115,10 @@ export async function scheduleDaily(
 
 export async function cancelDaily(): Promise<void> {
   if (!notificationsAvailable()) return
-  const ids = await pendingDailyIds()
-  if (ids.size > 0) {
+  const pending = await LocalNotifications.getPending()
+  if (pending.notifications.length > 0) {
     await LocalNotifications.cancel({
-      notifications: [...ids].map((id) => ({ id })),
+      notifications: pending.notifications.map((n) => ({ id: n.id })),
     })
   }
   localStorage.removeItem('qq.dailyTime')

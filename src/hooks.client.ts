@@ -8,6 +8,7 @@ import {
   registerNotificationTapHandler,
   scheduleDaily,
 } from '$lib/notifications'
+import { ready as localdbReady } from '$lib/localdb'
 
 // Must run before any load() calls into localdb.ts, which awaits
 // customElements.whenDefined('jeep-sqlite') — hooks.client.ts runs at
@@ -17,6 +18,15 @@ import {
 // there broke this exact ordering once already (see git history on
 // src/routes/q/[id]/+page.ts).
 if (!Capacitor.isNativePlatform()) initJeepSqlite(window)
+
+// Kick off the SQLite connection here rather than waiting for /app/daily's
+// DayFeed to mount and call it lazily — hooks.client.ts runs at module
+// scope before the route waterfall even starts, so this gives the (native
+// plugin bridge / jeep-sqlite element upgrade) work a head start of the
+// whole redirect chain (/ -> /app -> /app/daily) instead of eating into
+// the "no quote of the day" flash on first paint. Fire-and-forget: callers
+// still await ready() themselves before touching the db.
+localdbReady()
 
 // Capacitor's default Android back-button behavior exits the app instead
 // of navigating SvelteKit's history — there's no built-in bridge between

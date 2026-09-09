@@ -103,11 +103,13 @@ export async function getCachedQuoteOfDayRange(
   days = MAX_QUOTE_OF_DAY_DAYS,
 ): Promise<Quote[]> {
   const dates = quoteOfDayDates(days)
-  const quotes: Quote[] = []
-  for (const date of dates) {
-    const cached = await localdb.getCachedQuoteOfDay(date)
-    if (cached) quotes.push(cached)
-  }
+  const byDate = await localdb.getCachedQuoteOfDayRange(
+    dates[dates.length - 1],
+    dates[0],
+  )
+  const quotes = dates
+    .map((d) => byDate.get(d))
+    .filter((q): q is Quote => q != null)
   return quotes
 }
 
@@ -127,13 +129,11 @@ export async function fetchQuoteOfDayRange(
 ): Promise<Quote[]> {
   const dates = quoteOfDayDates(days)
 
-  const cachedByDate = new Map<string, Quote>()
-  const needed: string[] = []
-  for (const date of dates) {
-    const cached = await localdb.getCachedQuoteOfDay(date)
-    if (cached) cachedByDate.set(date, cached)
-    else needed.push(date)
-  }
+  const cachedByDate = await localdb.getCachedQuoteOfDayRange(
+    dates[dates.length - 1],
+    dates[0],
+  )
+  const needed = dates.filter((d) => !cachedByDate.has(d))
 
   if (needed.length === 0 || network.offline) {
     return dates
@@ -352,7 +352,9 @@ export async function fetchLikedQuotes(): Promise<LikedQuote[]> {
     .order('created_at', { ascending: false })
   if (likeErr) throw likeErr
   if (likeRows.length === 0) return []
-  const likedAtByQuote = new Map(likeRows.map((r) => [r.quote_id, r.created_at]))
+  const likedAtByQuote = new Map(
+    likeRows.map((r) => [r.quote_id, r.created_at]),
+  )
   const order = new Map(likeRows.map((r, i) => [r.quote_id, i]))
   const { data, error } = await supabase
     .from('quotes')
@@ -450,12 +452,13 @@ export async function fetchUpcomingQuoteOfDay(
 ): Promise<{ date: string; quote: Quote }[]> {
   const dates = Array.from({ length: days }, (_, i) => dateDaysAhead(i))
   if (network.offline) {
-    const out: { date: string; quote: Quote }[] = []
-    for (const date of dates) {
-      const cached = await localdb.getCachedQuoteOfDay(date)
-      if (cached) out.push({ date, quote: cached })
-    }
-    return out
+    const cachedByDate = await localdb.getCachedQuoteOfDayRange(
+      dates[0],
+      dates[dates.length - 1],
+    )
+    return dates
+      .filter((d) => cachedByDate.has(d))
+      .map((date) => ({ date, quote: cachedByDate.get(date)! }))
   }
 
   const { data, error } = await supabase

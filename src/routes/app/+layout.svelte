@@ -3,6 +3,12 @@
   import TabStrip from '$lib/components/TabStrip.svelte'
   import { page } from '$app/state'
   import { onMount } from 'svelte'
+  import { Capacitor } from '@capacitor/core'
+  import { SplashScreen } from '@capacitor/splash-screen'
+  import { feedCache } from '$lib/stores/feedCache.svelte'
+
+  let { data } = $props()
+  if (data.dailyQuotes.length > 0) feedCache.set('day', data.dailyQuotes)
 
   const TAB_ORDER = [
     '/app/daily',
@@ -148,7 +154,13 @@
   ontouchend={onTouchEnd}
   ontouchcancel={onTouchEnd}
 >
-  <TabStrip {activeIndex} {dragX} {settled} {scrollToTopSignal} {refreshSignal} />
+  <TabStrip
+    {activeIndex}
+    {dragX}
+    {settled}
+    {scrollToTopSignal}
+    {refreshSignal}
+  />
 </div>
 
 <TabBar {activeIndex} onSelect={(i) => selectTab(i)} />

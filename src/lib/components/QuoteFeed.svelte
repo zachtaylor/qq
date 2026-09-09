@@ -51,7 +51,7 @@
   const cached = feedKey ? feedCache.get(feedKey) : undefined
 
   let quotes: Quote[] = $state(cached?.quotes ?? [])
-  let loading = $state(quotes.length === 0 && !preload)
+  let loading = $state(quotes.length === 0)
   let error: Error | null = $state(null)
   let scrollEl: HTMLDivElement | undefined = $state()
   let refreshing = $state(false)
@@ -70,7 +70,8 @@
           quotes = preloaded
           loading = false
         }
-      } catch {
+      } catch (err) {
+        console.warn(`QuoteFeed(${feedKey}): preload() threw`, err)
         // preload is best-effort; load() below is the source of truth
       }
     }

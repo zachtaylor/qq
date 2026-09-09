@@ -164,7 +164,9 @@ async function init(): Promise<boolean> {
 }
 
 export function ready(): Promise<boolean> {
-  if (!readyPromise) readyPromise = init()
+  if (!readyPromise) {
+    readyPromise = init()
+  }
   return readyPromise
 }
 
@@ -614,19 +616,30 @@ export async function cacheQuoteOfDay(
 }
 
 export async function getCachedQuoteOfDay(date: string): Promise<Quote | null> {
-  if (!(await ready())) return null
+  const byDate = await getCachedQuoteOfDayRange(date, date)
+  return byDate.get(date) ?? null
+}
+
+export async function getCachedQuoteOfDayRange(
+  minDate: string,
+  maxDate: string,
+): Promise<Map<string, Quote>> {
+  const result = new Map<string, Quote>()
+  if (!(await ready())) return result
   const rows = (await query(
-    `SELECT quote_id FROM quote_of_day WHERE date = ?`,
-    [date],
+    `SELECT quote_of_day.date AS date, quotes.*
+     FROM quote_of_day
+     JOIN quotes ON quotes.id = quote_of_day.quote_id
+     WHERE quote_of_day.date BETWEEN ? AND ?`,
+    [minDate, maxDate],
   )) as any[]
-  if (rows.length === 0) return null
-  const id = rows[0].quote_id
-  const quoteRows = (await query(`SELECT * FROM quotes WHERE id = ?`, [
-    id,
-  ])) as any[]
-  if (quoteRows.length === 0) return null
-  const { tagsByQuote, authorsById } = await loadTagsAndAuthors([id])
-  return toQuote(quoteRows[0], tagsByQuote, authorsById)
+  if (rows.length === 0) return result
+  const quoteIds = rows.map((r) => r.id)
+  const { tagsByQuote, authorsById } = await loadTagsAndAuthors(quoteIds)
+  for (const row of rows) {
+    result.set(row.date, toQuote(row, tagsByQuote, authorsById))
+  }
+  return result
 }
 
 /** Re-reads just the like/download count fields for a set of quotes, e.g. to
@@ -636,7 +649,10 @@ export async function getCachedQuoteOfDay(date: string): Promise<Quote | null> {
 export async function getQuoteCounters(
   ids: string[],
 ): Promise<
-  Map<string, { liked_by_me: boolean; like_count: number; downloads_count: number }>
+  Map<
+    string,
+    { liked_by_me: boolean; like_count: number; downloads_count: number }
+  >
 > {
   const result = new Map<
     string,

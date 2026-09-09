@@ -10,6 +10,8 @@
   let { data } = $props()
   if (data.dailyQuotes.length > 0) feedCache.set('day', data.dailyQuotes)
 
+  if (Capacitor.isNativePlatform()) SplashScreen.hide()
+
   const TAB_ORDER = [
     '/app/daily',
     '/app/random',

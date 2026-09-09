@@ -5,6 +5,9 @@ const config: CapacitorConfig = {
   appName: 'qq Quotes',
   webDir: 'build',
   plugins: {
+    SplashScreen: {
+      launchAutoHide: false,
+    },
     CapacitorSQLite: {
       iosDatabaseLocation: 'Library/CapacitorDatabase',
       iosIsEncryption: true,

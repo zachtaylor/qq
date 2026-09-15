@@ -5,6 +5,7 @@ import {
 } from '@capacitor/local-notifications'
 import { goto } from '$app/navigation'
 import { fetchUpcomingQuoteOfDay, randomQuote } from '$lib/api/quotes'
+import { ready as localdbReady } from '$lib/localdb'
 
 const WINDOW_DAYS = 3
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -52,10 +53,11 @@ export function registerNotificationTapHandler(): void {
   if (!notificationsAvailable()) return
   LocalNotifications.addListener(
     'localNotificationActionPerformed',
-    (action) => {
+    async (action) => {
       const quoteId = action.notification.extra?.quoteId
       if (!quoteId) return
       window.umami?.track('daily_notification_tapped', { quote_id: quoteId })
+      await localdbReady()
       goto(`/q/${quoteId}`)
     },
   )

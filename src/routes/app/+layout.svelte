@@ -3,14 +3,10 @@
   import TabStrip from '$lib/components/TabStrip.svelte'
   import { page } from '$app/state'
   import { onMount } from 'svelte'
-  import { Capacitor } from '@capacitor/core'
-  import { SplashScreen } from '@capacitor/splash-screen'
   import { feedCache } from '$lib/stores/feedCache.svelte'
 
   let { data } = $props()
   if (data.dailyQuotes.length > 0) feedCache.set('day', data.dailyQuotes)
-
-  if (Capacitor.isNativePlatform()) SplashScreen.hide()
 
   const TAB_ORDER = [
     '/app/daily',

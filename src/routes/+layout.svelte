@@ -2,11 +2,14 @@
   import favicon from '$lib/assets/favicon.svg'
   import '../app.css'
   import { Capacitor } from '@capacitor/core'
+  import { SplashScreen } from '@capacitor/splash-screen'
   import OfflineBanner from '$lib/components/OfflineBanner.svelte'
   import { page } from '$app/state'
   import { onNavigate, afterNavigate } from '$app/navigation'
   import { clearQuoteTransitionTags } from '$lib/viewTransition'
   import { PUBLIC_UMAMI_WEBSITE_ID } from '$env/static/public'
+
+  if (Capacitor.isNativePlatform()) SplashScreen.hide()
 
   // Injected here (rather than a static <script> in app.html) so data-tag
   // can be set from Capacitor.getPlatform() — native builds serve from a

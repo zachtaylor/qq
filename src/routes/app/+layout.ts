@@ -17,14 +17,9 @@ import { getCachedQuoteOfDayRange } from '$lib/api/quotes'
 // down via `data` so DayFeed can render synchronously from load data
 // instead of mounting empty and fetching.
 export async function load() {
-  const t0 = performance.now()
-  console.log('[perf] /app layout load(): awaiting localdb.ready()')
   const [, dailyQuotes] = await Promise.all([
     localdbReady(),
     getCachedQuoteOfDayRange(),
   ])
-  console.log(
-    `[perf] /app layout load(): localdb ready + daily preloaded, unblocking first paint at +${(performance.now() - t0).toFixed(1)}ms`,
-  )
   return { dailyQuotes }
 }

@@ -1,7 +1,9 @@
 <script lang="ts">
   // The boot loading screen (see app.html) is only removed here, since this
-  // layout only mounts once +layout.ts's load() — localdb + auth + feed
-  // seeding — has resolved. See the comment on that load() for why.
+  // layout only mounts once +layout.ts's load() has resolved.
+  import { SplashScreen } from '@capacitor/splash-screen'
+
+  SplashScreen.hide()
   window.fadeOutBootLoading?.()
 
   let { children } = $props()

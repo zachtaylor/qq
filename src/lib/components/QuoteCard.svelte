@@ -1,19 +1,30 @@
 <script lang="ts">
-  import type { Quote } from '$lib/types'
+  import type { QQuote } from '$lib/types'
   import { setLiked } from '$lib/api/quotes'
   import { network } from '$lib/stores/network.svelte'
-  import { tagQuoteTransition } from '$lib/viewTransition'
+  import { tagQuoteTransition, tagChipTransition } from '$lib/viewTransition'
   import Heart from '@lucide/svelte/icons/heart'
   import Download from '@lucide/svelte/icons/download'
 
   let {
     quote,
-    hideAuthor = false,
-    nameTransition = true,
+    tagQuoteText = true,
+    tagAuthor = true,
+    tagChipFlags = [],
   }: {
-    quote: Quote
-    hideAuthor?: boolean
-    nameTransition?: boolean
+    quote: QQuote
+    /** Whether this card may claim the static quote-text-{id}/author-{slug}
+     *  view-transition-names. The View Transitions API errors if the same
+     *  name is assigned to more than one on-screen element — callers
+     *  (QuoteList) must dedupe across the whole list/page and pass false
+     *  for every occurrence after the first. */
+    tagQuoteText?: boolean
+    tagAuthor?: boolean
+    /** Per-tag (by index into `quote.tags`) whether this card's chip may
+     *  claim the static `tag-{slug}` view-transition-name — same dedupe
+     *  contract as `tagAuthor`, but per-chip since a card can show several
+     *  tags and each repeats independently across the list. */
+    tagChipFlags?: boolean[]
   } = $props()
 
   let liked = $state(quote.liked_by_me)
@@ -23,8 +34,13 @@
 
   let articleEl: HTMLElement | undefined
 
+  const author = $derived(quote.author)
+
+  const quoteTextName = `quote-text-${quote.id}`
+  const authorName = $derived(`author-${author.slug}`)
+
   function onNavigateClick() {
-    if (articleEl) tagQuoteTransition(articleEl, quote.id, quote.author.slug)
+    if (articleEl) tagQuoteTransition(articleEl, quote.id, author.slug)
   }
 
   async function toggleLike() {
@@ -56,17 +72,19 @@
     <blockquote
       data-transition="quote-text"
       class="font-serif text-xl leading-relaxed text-stone-800"
-      style="view-transition-name: quote-text-{quote.id}"
+      style={tagQuoteText ? `view-transition-name: ${quoteTextName}` : ''}
     >
       “{quote.text}”
     </blockquote>
   </a>
   {#if quote.tags.length > 0}
     <div class="mt-3 flex flex-wrap gap-1.5">
-      {#each quote.tags as tag (tag.id)}
+      {#each quote.tags as tag, i (tag.id)}
         <a
           href="/app/tags/{tag.slug}"
           class="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-500 hover:bg-stone-200"
+          style={tagChipFlags[i] ? `view-transition-name: tag-${tag.slug}` : ''}
+          onclick={(e) => tagChipTransition(e.currentTarget, tag.slug)}
         >
           #{tag.name}
         </a>
@@ -74,19 +92,15 @@
     </div>
   {/if}
   <div class="mt-4 flex items-center justify-between">
-    {#if !hideAuthor}
-      <a
-        href="/authors/{quote.author.slug}"
-        data-transition="author"
-        class="text-sm font-medium text-accent hover:underline"
-        style={nameTransition
-          ? `view-transition-name: author-${quote.author.slug}`
-          : ''}
-        onclick={onNavigateClick}
-      >
-        — {quote.author.name}
-      </a>
-    {/if}
+    <a
+      href="/app/authors/{author.slug}"
+      data-transition="author"
+      class="text-sm font-medium text-accent hover:underline"
+      style={tagAuthor ? `view-transition-name: ${authorName}` : ''}
+      onclick={onNavigateClick}
+    >
+      — {author.name}
+    </a>
     <div class="ml-auto flex items-center gap-4">
       <button
         onclick={toggleLike}
@@ -109,7 +123,7 @@
         </span>
       {:else}
         <a
-          href="/share/{quote.id}"
+          href="/app/share/{quote.id}"
           class="flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-600"
           aria-label="Share"
         >

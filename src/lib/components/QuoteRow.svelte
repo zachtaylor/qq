@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Quote } from '$lib/types'
+  import type { QQuote } from '$lib/types'
   import { tagQuoteTransition } from '$lib/viewTransition'
 
   let {
@@ -8,7 +8,7 @@
     tagQuoteText = true,
     tagAuthor = true,
   }: {
-    quote: Pick<Quote, 'id' | 'text' | 'author'>
+    quote: Pick<QQuote, 'id' | 'text' | 'author_id' | 'author'>
     timestamp?: string
     /** Whether this row may claim the static quote-text-{id}/author-{slug}
      *  view-transition-names. A list can contain the same quote or author
@@ -18,13 +18,14 @@
     tagQuoteText?: boolean
     tagAuthor?: boolean
   } = $props()
+
+  const author = $derived(quote.author)
 </script>
 
 <a
   href="/app/q/{quote.id}"
   class="block"
-  onclick={(e) =>
-    tagQuoteTransition(e.currentTarget, quote.id, quote.author.slug)}
+  onclick={(e) => tagQuoteTransition(e.currentTarget, quote.id, author.slug)}
 >
   <p
     data-transition="quote-text"
@@ -36,8 +37,8 @@
   <p
     data-transition="author"
     class="mt-1 text-xs text-stone-400"
-    style={tagAuthor ? `view-transition-name: author-${quote.author.slug}` : ''}
+    style={tagAuthor ? `view-transition-name: author-${author.slug}` : ''}
   >
-    — {quote.author.name}{timestamp ? ` · ${timestamp}` : ''}
+    — {author.name}{timestamp ? ` · ${timestamp}` : ''}
   </p>
 </a>

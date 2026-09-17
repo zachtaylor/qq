@@ -3,17 +3,8 @@
   import TabStrip from '$lib/components/TabStrip.svelte'
   import { page } from '$app/state'
   import { onMount } from 'svelte'
-  import { feedCache } from '$lib/stores/feedCache.svelte'
+  import { TAB_ORDER, lastTabKey } from '$lib/lastTab'
 
-  let { data } = $props()
-  if (data.dailyQuotes.length > 0) feedCache.set('day', data.dailyQuotes)
-
-  const TAB_ORDER = [
-    '/app/tabs/daily',
-    '/app/tabs/random',
-    '/app/tabs/trending',
-    '/app/settings',
-  ]
   const SWIPE_THRESHOLD = 60
   const SWIPE_COMMIT_RATIO = 0.3
 
@@ -27,7 +18,7 @@
   // SvelteKit's router, which would otherwise reconcile /app/tabs/daily <-> /app/tabs/random
   // as a real route change and remount this layout). Kept in sync with browser
   // back/forward via the popstate listener below, and with real SvelteKit
-  // navigations into /app/* via the $effect further down.
+  // navigations into /app/tabs/* via the $effect further down.
   let activeIndex = $state(indexForPath(page.url.pathname))
 
   let touchStartX = 0
@@ -136,11 +127,15 @@
     return () => window.removeEventListener('popstate', onPopState)
   })
 
-  // Covers real SvelteKit navigations into /app/* (e.g. the /app -> /app/tabs/daily
-  // redirect, or landing here after a back/forward from outside /app) that
-  // don't go through selectTab.
+  // Covers real SvelteKit navigations into /app/tabs/* (e.g. the /app ->
+  // /app/tabs/daily redirect, or landing here after a back/forward from
+  // outside /app/tabs) that don't go through selectTab.
   $effect(() => {
     activeIndex = indexForPath(page.url.pathname)
+  })
+
+  $effect(() => {
+    localStorage.setItem(lastTabKey, TAB_ORDER[activeIndex])
   })
 </script>
 

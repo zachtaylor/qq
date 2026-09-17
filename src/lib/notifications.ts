@@ -134,3 +134,14 @@ export function getDailyTime(): { hour: number; minute: number } | null {
     return null
   }
 }
+
+export function restoreDailyNotifications(): void {
+  const daily = getDailyTime()
+  if (daily) scheduleDaily(daily.hour, daily.minute)
+}
+
+export function setupNotifications(): void {
+  registerNotificationTapHandler()
+  registerNotificationChannel()
+  restoreDailyNotifications()
+}

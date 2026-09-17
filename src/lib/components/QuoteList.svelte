@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { Quote } from '$lib/types'
+  import type { QQuote } from '$lib/types'
+  import { dedupeTransitionNames } from '$lib/viewTransition'
   import QuoteCard from './QuoteCard.svelte'
 
   let {
@@ -7,9 +8,10 @@
     key,
     quotes: quotesProp,
     empty = 'No quotes yet.',
-    hideAuthor = false,
+    takenAuthorNames = [],
+    takenTagNames = [],
   }: {
-    load?: () => Promise<Quote[]>
+    load?: () => Promise<QQuote[]>
     /** Reactive identity for `load` (e.g. the current tag slug). `load`
      *  itself is typically a fresh closure every render, so it can't be
      *  used as an effect dependency directly — without this, re-fetching
@@ -19,12 +21,18 @@
      *  Fetched `quotes` are updated in place rather than remounting the
      *  list, so on-screen cards don't jump/reset between loads. */
     key?: string
-    quotes?: Quote[]
+    quotes?: QQuote[]
     empty?: string
-    hideAuthor?: boolean
+    /** `author-{slug}` view-transition-names already claimed elsewhere on
+     *  the page (e.g. a detail page's own header) — this list must not
+     *  re-claim any of them for a matching card. */
+    takenAuthorNames?: string[]
+    /** Same idea as `takenAuthorNames`, for `tag-{slug}` names (e.g. the
+     *  `#slug` heading on the tag search page itself). */
+    takenTagNames?: string[]
   } = $props()
 
-  let loaded: Quote[] | undefined = $state(undefined)
+  let loaded: QQuote[] | undefined = $state(undefined)
   let error: Error | null = $state(null)
 
   $effect(() => {
@@ -41,16 +49,33 @@
   })
 </script>
 
-{#snippet list(quotes: Quote[])}
+{#snippet list(quotes: QQuote[])}
   {#if quotes.length === 0}
     <p class="py-12 text-center text-sm text-stone-400">{empty}</p>
   {:else}
-    {@const seenAuthors = new Set<string>()}
+    {@const authorNames = quotes.map((q) => `author-${q.author.slug}`)}
+    {@const tagAuthorFlags = dedupeTransitionNames(
+      authorNames,
+      new Set(takenAuthorNames),
+    )}
+    {@const tagChipFlagsByQuote = (() => {
+      const seen = new Set(takenTagNames)
+      return quotes.map((q) =>
+        q.tags.map((tag) => {
+          const name = `tag-${tag.slug}`
+          if (seen.has(name)) return false
+          seen.add(name)
+          return true
+        }),
+      )
+    })()}
     <div class="flex flex-col gap-3">
-      {#each quotes as quote (quote.id)}
-        {@const isFirstForAuthor = !seenAuthors.has(quote.author.slug)}
-        {@const _a = seenAuthors.add(quote.author.slug)}
-        <QuoteCard {quote} {hideAuthor} nameTransition={isFirstForAuthor} />
+      {#each quotes as quote, i (quote.id)}
+        <QuoteCard
+          {quote}
+          tagAuthor={tagAuthorFlags[i]}
+          tagChipFlags={tagChipFlagsByQuote[i]}
+        />
       {/each}
     </div>
   {/if}

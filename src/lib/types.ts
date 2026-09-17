@@ -19,21 +19,24 @@ export interface Quote {
   text: string
   author_id: string
   created_at: string
-  author: Pick<Author, 'name' | 'slug'>
-  tags: Tag[]
   like_count: number
   liked_by_me: boolean
   downloads_count: number
 }
 
+export interface QQuote extends Quote {
+  author: Author
+  tags: Tag[]
+}
+
 export interface Download {
   quoteId: string
-  quote: Pick<Quote, 'id' | 'text' | 'author'>
+  quote: Pick<QQuote, 'id' | 'text' | 'author_id' | 'author'>
   style: import('$lib/shareCard').CardStyle | null
   createdAt: string
 }
 
 export interface LikedQuote {
-  quote: Quote
+  quote: QQuote
   likedAt: string
 }

@@ -1,33 +1,28 @@
 <script lang="ts">
   import QuoteRow from '$lib/components/QuoteRow.svelte'
-  import { createTransitionKeyTracker } from '$lib/viewTransition'
-  import { fetchDownloadHistory } from '$lib/api/quotes'
+  import { fetchUserContentBundle } from '$lib/api/userContent'
   import {
     userContentCache,
     loadUserContent,
   } from '$lib/stores/userContentCache.svelte'
   import { network } from '$lib/stores/network.svelte'
+  import { dedupeTransitionNames } from '$lib/viewTransition'
+  import BackButton from '$lib/components/BackButton.svelte'
 
   let downloads = $state(userContentCache.downloads ?? [])
 
-  // Fresh trackers whenever `downloads` is reassigned — the effect below
-  // re-renders this list twice (once from the local cache, once from the
-  // network refetch), and a tracker created only once at component init
-  // would treat the second render's calls as duplicates of the first,
-  // permanently stripping every row's static view-transition-name once the
-  // network data lands.
-  let claimQuote = $derived.by(() => {
-    downloads
-    return createTransitionKeyTracker()
-  })
-  let claimAuthor = $derived.by(() => {
-    downloads
-    return createTransitionKeyTracker()
-  })
+  const tagQuoteText = $derived(
+    dedupeTransitionNames(downloads.map((d) => `quote-text-${d.quoteId}`)),
+  )
+  const tagAuthor = $derived(
+    dedupeTransitionNames(
+      downloads.map((d) => `author-${d.quote.author.slug}`),
+    ),
+  )
 
   // Run once per mount, not once per reactive change (e.g. network
   // connectivity flipping) — otherwise every offline/online toggle
-  // re-fires fetchDownloadHistory(), thrashing the network.
+  // re-fires fetchUserContentBundle(), thrashing the network.
   let attempted = false
   $effect(() => {
     if (attempted) return
@@ -36,7 +31,8 @@
       downloads = userContentCache.downloads ?? []
     })
     if (network.offline) return
-    fetchDownloadHistory().then((result) => {
+    fetchUserContentBundle().then(({ likes, downloads: result }) => {
+      userContentCache.setLikes(likes)
       userContentCache.setDownloads(result)
       downloads = result
     })
@@ -53,7 +49,7 @@
 </script>
 
 <div class="mb-6 flex items-center gap-3">
-  <a href="/app/settings" class="text-xl text-stone-500" aria-label="Back">←</a>
+  <BackButton />
   <h1 class="text-2xl font-bold text-stone-900">Downloads</h1>
 </div>
 
@@ -63,17 +59,18 @@
   </p>
 {:else}
   <ul class="divide-y divide-stone-100">
-    {#each downloads as download (download.createdAt)}
+    {#each downloads as download, i (download.createdAt)}
       <li class="py-3">
         <QuoteRow
           quote={{
             id: download.quoteId,
             text: download.quote.text,
+            author_id: download.quote.author_id,
             author: download.quote.author,
           }}
           timestamp={formatDate(download.createdAt)}
-          tagQuoteText={claimQuote(download.quoteId)}
-          tagAuthor={claimAuthor(download.quote.author.slug)}
+          tagQuoteText={tagQuoteText[i]}
+          tagAuthor={tagAuthor[i]}
         />
       </li>
     {/each}

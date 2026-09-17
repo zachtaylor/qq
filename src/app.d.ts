@@ -18,6 +18,7 @@ declare global {
       ): void
       track(eventName: string, data?: Record<string, unknown>): void
     }
+    fadeOutBootLoading?: () => void
   }
 }
 

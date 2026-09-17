@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fetchTrending } from '$lib/api/quotes'
+  import { fetchTrending, getCachedTrending } from '$lib/api/quotes'
   import QuoteFeed from '$lib/components/QuoteFeed.svelte'
 
   let {
@@ -15,6 +15,7 @@
 
 <QuoteFeed
   load={() => fetchTrending()}
+  preload={() => getCachedTrending()}
   empty="Nothing trending yet."
   feedKey="trending"
   {active}

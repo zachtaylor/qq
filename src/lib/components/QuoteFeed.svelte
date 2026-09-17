@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { Quote } from '$lib/types'
+  import type { QQuote } from '$lib/types'
   import { setLiked } from '$lib/api/quotes'
   import { network } from '$lib/stores/network.svelte'
   import { feedCache, type FeedKey } from '$lib/stores/feedCache.svelte'
   import { fade } from 'svelte/transition'
   import { SvelteSet } from 'svelte/reactivity'
-  import { tagQuoteTransition } from '$lib/viewTransition'
+  import { tagQuoteTransition, tagChipTransition } from '$lib/viewTransition'
   import { afterNavigate } from '$app/navigation'
   import { getQuoteCounters } from '$lib/localdb'
   import Heart from '@lucide/svelte/icons/heart'
@@ -22,18 +22,18 @@
     scrollToTopSignal = 0,
     refreshSignal = 0,
   }: {
-    load: () => Promise<Quote[]>
+    load: () => Promise<QQuote[]>
     /** Like a page load function: an async, local-only read (e.g. straight
      *  from SQLite) awaited before first render, so a cold mount can show
      *  real data immediately instead of a spinner. Its result seeds
      *  `quotes`; `load()` still runs afterwards to reconcile/refresh. */
-    preload?: () => Promise<Quote[]>
+    preload?: () => Promise<QQuote[]>
     /** Used for an explicit pull-to-refresh instead of `load`, when a feed
      *  needs to force a real re-fetch that `load` itself wouldn't (e.g.
      *  random's staleness-gated reload). Defaults to `load`. */
-    onRefresh?: () => Promise<Quote[]>
+    onRefresh?: () => Promise<QQuote[]>
     empty?: string
-    label?: (quote: Quote, index: number) => string
+    label?: (quote: QQuote, index: number) => string
     feedKey?: FeedKey
     /** Whether this feed is the frontmost tab. Static view-transition-name
      *  fallbacks (for back-navigation) must be gated on this — every tab
@@ -50,7 +50,7 @@
 
   const cached = feedKey ? feedCache.get(feedKey) : undefined
 
-  let quotes: Quote[] = $state(cached?.quotes ?? [])
+  let quotes: QQuote[] = $state(cached?.quotes ?? [])
   let loading = $state(quotes.length === 0)
   let error: Error | null = $state(null)
   let scrollEl: HTMLDivElement | undefined = $state()
@@ -62,7 +62,7 @@
   // reassigning quotes to [] still re-triggers this effect.
   let attempted = false
 
-  async function runLoad(fetcher: () => Promise<Quote[]> = load) {
+  async function runLoad(fetcher: () => Promise<QQuote[]> = load) {
     if (preload && quotes.length === 0) {
       try {
         const preloaded = await preload()
@@ -114,7 +114,11 @@
   let pullStartY = 0
   let pulling = $state(false)
   let pullDistance = $state(0)
-  const PULL_THRESHOLD = 70
+  const PULL_THRESHOLD = 110
+  // Raw drag distance is damped before being compared to PULL_THRESHOLD, so
+  // it takes a noticeably longer drag to trigger a refresh than a 1:1
+  // mapping would — otherwise a small downward scroll flick reads as a pull.
+  const PULL_DAMPING = 0.5
 
   function onTouchStart(e: TouchEvent) {
     if (!scrollEl || scrollEl.scrollTop > 0) return
@@ -124,13 +128,29 @@
 
   function onTouchMove(e: TouchEvent) {
     if (!pulling || !scrollEl || scrollEl.scrollTop > 0) return
-    const dy = e.touches[0].clientY - pullStartY
+    const dy = (e.touches[0].clientY - pullStartY) * PULL_DAMPING
     if (dy <= 0) {
       pullDistance = 0
       return
     }
+    // Once a pull is in progress, keep the browser's own scroll/rubber-band
+    // handling from taking over the gesture — otherwise reversing direction
+    // (dragging back up to cancel) can hand the touch to native scrolling
+    // mid-gesture, after which further touchmove deltas stop tracking the
+    // finger against pullStartY the way this handler assumes.
+    e.preventDefault()
     pullDistance = Math.min(dy, PULL_THRESHOLD * 1.5)
   }
+
+  // Svelte's ontouchmove attribute binds passively, so e.preventDefault()
+  // inside it throws — attach this one manually as active so we can block
+  // native scroll/rubber-banding while a pull is in progress (see onTouchMove).
+  $effect(() => {
+    if (!scrollEl) return
+    const el = scrollEl
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => el.removeEventListener('touchmove', onTouchMove)
+  })
 
   function onTouchEnd() {
     if (!pulling) return
@@ -180,7 +200,7 @@
   })
 
   // The feed tab stays mounted while the user visits a quote detail page
-  // (see app/+layout.svelte), so a like/download made there leaves this
+  // (see app/tabs/+layout.svelte), so a like/download made there leaves this
   // component's `quotes` array holding stale counters when the user
   // navigates back. setLiked()/bumpDownloadsCount() keep localdb current as
   // the source of truth, so re-read from there rather than a full reload
@@ -201,7 +221,7 @@
 
   let animatingIds = new SvelteSet<string>()
 
-  async function toggleLike(quote: Quote) {
+  async function toggleLike(quote: QQuote) {
     if (network.offline) return
     const wasLiked = quote.liked_by_me
     quote.liked_by_me = !quote.liked_by_me
@@ -238,7 +258,6 @@
       role="feed"
       onscroll={onScroll}
       ontouchstart={onTouchStart}
-      ontouchmove={onTouchMove}
       ontouchend={onTouchEnd}
       ontouchcancel={onTouchEnd}
       class="relative h-full snap-y snap-mandatory overflow-y-scroll overscroll-y-contain"
@@ -256,6 +275,7 @@
         </div>
       {/if}
       {#each quotes as quote, i (quote.id)}
+        {@const author = quote.author}
         <section
           class="flex h-full snap-start snap-always flex-col items-center justify-center px-6 pb-24"
         >
@@ -274,7 +294,7 @@
                 tagQuoteTransition(
                   e.currentTarget.parentElement!,
                   quote.id,
-                  quote.author.slug,
+                  author.slug,
                 )}
             >
               <blockquote
@@ -284,24 +304,24 @@
                   ? `view-transition-name: quote-text-${quote.id}`
                   : ''}
               >
-                “{quote.text}”
+                "{quote.text}"
               </blockquote>
             </a>
             <a
-              href="/authors/{quote.author.slug}"
+              href="/app/authors/{author.slug}"
               data-transition="author"
               class="mt-6 text-base font-medium text-accent hover:underline"
               style={active && i === activeSlideIndex
-                ? `view-transition-name: author-${quote.author.slug}`
+                ? `view-transition-name: author-${author.slug}`
                 : ''}
               onclick={(e) =>
                 tagQuoteTransition(
                   e.currentTarget.parentElement!,
                   quote.id,
-                  quote.author.slug,
+                  author.slug,
                 )}
             >
-              — {quote.author.name}
+              — {author.name}
             </a>
             {#if quote.tags.length > 0}
               <div class="mt-4 flex flex-wrap justify-center gap-1.5">
@@ -309,6 +329,11 @@
                   <a
                     href="/app/tags/{tag.slug}"
                     class="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-500 hover:bg-stone-200"
+                    style={active && i === activeSlideIndex
+                      ? `view-transition-name: tag-${tag.slug}`
+                      : ''}
+                    onclick={(e) =>
+                      tagChipTransition(e.currentTarget, tag.slug)}
                   >
                     #{tag.name}
                   </a>
@@ -342,7 +367,7 @@
                 </span>
               {:else}
                 <a
-                  href="/share/{quote.id}"
+                  href="/app/share/{quote.id}"
                   class="flex items-center gap-2 text-lg text-stone-400 hover:text-stone-600"
                   aria-label="Share"
                 >

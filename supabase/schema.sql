@@ -291,6 +291,171 @@ language sql stable as $$
   limit max_rows
 $$;
 
+-- Quotes by a given author, capped and scored the same way as
+-- trending_quotes (same per-quote decayed 7-day like/download score) so an
+-- author page and the "similar quotes" panel both lead with the author's
+-- best-performing quotes rather than an arbitrary/full unbounded list —
+-- see fetchQuotesByAuthor() in src/lib/api/quotes.ts. Unlike trending_quotes,
+-- there's no activity filter: every quote by the author is eligible, quotes
+-- with no recent likes/downloads just sort after scored ones (by
+-- created_at desc as a tiebreak).
+create or replace function quotes_by_author(p_author_id uuid, max_rows int default 25, p_device_id text default null)
+returns table (
+  id uuid,
+  text text,
+  author_id uuid,
+  created_at timestamptz,
+  like_count integer,
+  downloads_count integer,
+  recent_like_count bigint,
+  recent_download_count bigint,
+  liked_by_me boolean,
+  author_name text,
+  author_slug text,
+  tags jsonb
+)
+language sql stable as $$
+  select
+    q.id,
+    q.text,
+    q.author_id,
+    q.created_at,
+    q.like_count,
+    q.downloads_count,
+    coalesce(l.like_count, 0) as recent_like_count,
+    coalesce(d.download_count, 0) as recent_download_count,
+    exists (
+      select 1 from likes lm
+      where lm.quote_id = q.id
+        and (
+          (auth.uid() is not null and lm.user_id = auth.uid()) or
+          (auth.uid() is null and p_device_id is not null and lm.device_id = p_device_id)
+        )
+    ) as liked_by_me,
+    a.name as author_name,
+    a.slug as author_slug,
+    coalesce(
+      (select jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+       from quote_tags qt join tags t on t.id = qt.tag_id
+       where qt.quote_id = q.id),
+      '[]'::jsonb
+    ) as tags
+  from quotes q
+  join authors a on a.id = q.author_id
+  left join (
+    select quote_id, count(*) as like_count
+    from likes
+    where created_at > now() - interval '7 days'
+    group by quote_id
+  ) l on l.quote_id = q.id
+  left join (
+    select quote_id, count(*) as download_count
+    from downloads
+    where created_at > now() - interval '7 days'
+    group by quote_id
+  ) d on d.quote_id = q.id
+  left join (
+    select quote_id,
+      sum(exp(-extract(epoch from (now() - created_at)) / 86400 * ln(2) / 1)) as score
+    from likes
+    where created_at > now() - interval '7 days'
+    group by quote_id
+  ) ls on ls.quote_id = q.id
+  left join (
+    select quote_id,
+      sum(exp(-extract(epoch from (now() - created_at)) / 86400 * ln(2) / 1)) as score
+    from downloads
+    where created_at > now() - interval '7 days'
+    group by quote_id
+  ) ds on ds.quote_id = q.id
+  where q.author_id = p_author_id
+  order by coalesce(ls.score, 0) * 3 + coalesce(ds.score, 0) desc, q.created_at desc
+  limit max_rows
+$$;
+
+grant execute on function quotes_by_author(uuid, int, text) to anon, authenticated;
+
+-- Quotes tagged with a given tag, capped and scored the same way as
+-- trending_quotes/quotes_by_author (see quotes_by_author's comment) — used
+-- by both the tag page and the "similar quotes" panel, see
+-- fetchQuotesByTag() in src/lib/api/quotes.ts.
+create or replace function quotes_by_tag(p_tag_slug text, max_rows int default 25, p_device_id text default null)
+returns table (
+  id uuid,
+  text text,
+  author_id uuid,
+  created_at timestamptz,
+  like_count integer,
+  downloads_count integer,
+  recent_like_count bigint,
+  recent_download_count bigint,
+  liked_by_me boolean,
+  author_name text,
+  author_slug text,
+  tags jsonb
+)
+language sql stable as $$
+  select
+    q.id,
+    q.text,
+    q.author_id,
+    q.created_at,
+    q.like_count,
+    q.downloads_count,
+    coalesce(l.like_count, 0) as recent_like_count,
+    coalesce(d.download_count, 0) as recent_download_count,
+    exists (
+      select 1 from likes lm
+      where lm.quote_id = q.id
+        and (
+          (auth.uid() is not null and lm.user_id = auth.uid()) or
+          (auth.uid() is null and p_device_id is not null and lm.device_id = p_device_id)
+        )
+    ) as liked_by_me,
+    a.name as author_name,
+    a.slug as author_slug,
+    coalesce(
+      (select jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+       from quote_tags qt join tags t on t.id = qt.tag_id
+       where qt.quote_id = q.id),
+      '[]'::jsonb
+    ) as tags
+  from quotes q
+  join authors a on a.id = q.author_id
+  join quote_tags qt_filter on qt_filter.quote_id = q.id
+  join tags t_filter on t_filter.id = qt_filter.tag_id and t_filter.slug = p_tag_slug
+  left join (
+    select quote_id, count(*) as like_count
+    from likes
+    where created_at > now() - interval '7 days'
+    group by quote_id
+  ) l on l.quote_id = q.id
+  left join (
+    select quote_id, count(*) as download_count
+    from downloads
+    where created_at > now() - interval '7 days'
+    group by quote_id
+  ) d on d.quote_id = q.id
+  left join (
+    select quote_id,
+      sum(exp(-extract(epoch from (now() - created_at)) / 86400 * ln(2) / 1)) as score
+    from likes
+    where created_at > now() - interval '7 days'
+    group by quote_id
+  ) ls on ls.quote_id = q.id
+  left join (
+    select quote_id,
+      sum(exp(-extract(epoch from (now() - created_at)) / 86400 * ln(2) / 1)) as score
+    from downloads
+    where created_at > now() - interval '7 days'
+    group by quote_id
+  ) ds on ds.quote_id = q.id
+  order by coalesce(ls.score, 0) * 3 + coalesce(ds.score, 0) desc, q.created_at desc
+  limit max_rows
+$$;
+
+grant execute on function quotes_by_tag(text, int, text) to anon, authenticated;
+
 -- Find-or-create an author by name. Used only by the ZenQuotes ingestion
 -- job (service role) and the seed script.
 create or replace function get_or_create_author(author_name text)
@@ -407,15 +572,57 @@ $$;
 -- "no client-writable content" model everywhere else in this schema.
 revoke execute on function ensure_quote_of_the_day(date) from public;
 
--- A batch of randomly-ordered quote ids, for the "random" feed tab (as
--- opposed to quote_of_the_day(), which is stable for the whole day).
-create or replace function random_quotes(max_rows int default 50)
-returns table (id uuid)
+-- A batch of randomly-ordered full quote rows, for the "random" feed tab
+-- (as opposed to quote_of_the_day(), which is stable for the whole day).
+-- Same output shape as trending_quotes/quotes_by_author/quotes_by_tag, minus
+-- the recency-scoring columns those need for ranking (this just picks
+-- max_rows quotes uniformly at random, no scoring involved).
+create or replace function random_quotes(max_rows int default 50, p_device_id text default null)
+returns table (
+  id uuid,
+  text text,
+  author_id uuid,
+  created_at timestamptz,
+  like_count integer,
+  downloads_count integer,
+  liked_by_me boolean,
+  author_name text,
+  author_slug text,
+  tags jsonb
+)
 language sql stable as $$
-  select q.id from quotes q order by random() limit max_rows
+  select
+    q.id,
+    q.text,
+    q.author_id,
+    q.created_at,
+    q.like_count,
+    q.downloads_count,
+    exists (
+      select 1 from likes lm
+      where lm.quote_id = q.id
+        and (
+          (auth.uid() is not null and lm.user_id = auth.uid()) or
+          (auth.uid() is null and p_device_id is not null and lm.device_id = p_device_id)
+        )
+    ) as liked_by_me,
+    a.name as author_name,
+    a.slug as author_slug,
+    coalesce(
+      (select jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+       from quote_tags qt join tags t on t.id = qt.tag_id
+       where qt.quote_id = q.id),
+      '[]'::jsonb
+    ) as tags
+  from quotes q
+  join authors a on a.id = q.author_id
+  order by random()
+  limit max_rows
 $$;
 
-grant execute on function random_quotes(int) to anon, authenticated;
+drop function if exists random_quotes(int);
+
+grant execute on function random_quotes(int, text) to anon, authenticated;
 
 -- Called once right after a device signs in for the first time: moves that
 -- device's likes and downloads onto the now-authenticated account (skipping

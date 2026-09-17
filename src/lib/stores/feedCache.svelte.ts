@@ -1,9 +1,9 @@
-import type { Quote } from '$lib/types'
+import type { QQuote } from '$lib/types'
 
 type FeedKey = 'day' | 'random' | 'trending'
 
 interface FeedEntry {
-  quotes: Quote[]
+  quotes: QQuote[]
   scrollTop: number
   fetchedAt: number
 }
@@ -25,7 +25,7 @@ export const feedCache = {
     if (!existing || existing.quotes.length === 0) return true
     return Date.now() - existing.fetchedAt > maxAgeMs
   },
-  set(key: FeedKey, quotes: Quote[]): void {
+  set(key: FeedKey, quotes: QQuote[]): void {
     const existing = entries.get(key)
     entries.set(key, {
       quotes,

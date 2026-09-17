@@ -13,13 +13,23 @@
     signOut,
   } from '$lib/stores/session.svelte'
   import QuoteRow from '$lib/components/QuoteRow.svelte'
-  import { createTransitionKeyTracker } from '$lib/viewTransition'
-  import { fetchLikedQuotes, fetchDownloadHistory } from '$lib/api/quotes'
+  import { dedupeTransitionNames } from '$lib/viewTransition'
+  import {
+    downloadDataPack,
+    DATA_PACK_LIMIT,
+    fetchQuoteOfDayRange,
+    fetchRandomFeed,
+    fetchTrending,
+  } from '$lib/api/quotes'
+  import { fetchUserContentBundle } from '$lib/api/userContent'
   import {
     userContentCache,
     loadUserContent,
   } from '$lib/stores/userContentCache.svelte'
+  import { feedCache } from '$lib/stores/feedCache.svelte'
   import { network } from '$lib/stores/network.svelte'
+  import * as localdb from '$lib/localdb'
+  import type { StorageEstimate } from '$lib/localdb'
 
   let { active = true }: { active?: boolean } = $props()
 
@@ -41,8 +51,8 @@
       downloads = userContentCache.downloads ?? []
     })
     if (network.offline) return
-    Promise.all([fetchLikedQuotes(), fetchDownloadHistory()]).then(
-      ([likeResult, downloadResult]) => {
+    fetchUserContentBundle().then(
+      ({ likes: likeResult, downloads: downloadResult }) => {
         userContentCache.setLikes(likeResult)
         userContentCache.setDownloads(downloadResult)
         likes = likeResult
@@ -58,36 +68,88 @@
   let status = $state('')
   const available = notificationsAvailable()
 
-  // Fresh trackers per render, shared across the Likes and Downloads
-  // sections: a view-transition-name can only be claimed by one element on
-  // the whole page at once, and the same quote/author can appear in both
-  // sections (liked *and* downloaded) — per-section trackers can't see that
-  // and would let both sections tag it, producing a duplicate
-  // view-transition-name that aborts the transition. Recreated whenever
-  // either list changes (a once-created tracker would otherwise leak claims
-  // across renders once `likes`/`downloads` are replaced by refetches,
-  // permanently blocking re-tagging) and whenever this tab becomes active
-  // again (this panel never unmounts when the user swipes to another tab,
-  // so without depending on `active` here, returning to Settings would keep
-  // the same tracker instance from before — already exhausted by the
-  // earlier render — and every row's static tag would silently stay
-  // stripped for the next /settings/likes or /settings/downloads trip).
-  let claimQuoteText = $derived.by(() => {
-    likes
-    downloads
-    active
-    return createTransitionKeyTracker()
-  })
-  let claimAuthor = $derived.by(() => {
-    likes
-    downloads
-    active
-    return createTransitionKeyTracker()
-  })
-
   let email = $state('')
   let authStatus = $state('')
   let authBusy = $state(false)
+
+  let storage = $state<StorageEstimate | null>(null)
+  let dataPackBusy = $state(false)
+  let dataPackStatus = $state('')
+  let clearBusy = $state(false)
+
+  async function refreshStorage() {
+    storage = await localdb.getStorageEstimate()
+  }
+
+  $effect(() => {
+    if (!active) return
+    refreshStorage()
+  })
+
+  const previewLikes = $derived(active ? likes.slice(0, 3) : [])
+  const previewDownloads = $derived(active ? downloads.slice(0, 3) : [])
+  const previewQuoteTextNames = $derived([
+    ...previewLikes.map((l) => `quote-text-${l.quote.id}`),
+    ...previewDownloads.map((d) => `quote-text-${d.quoteId}`),
+  ])
+  const previewAuthorNames = $derived([
+    ...previewLikes.map((l) => `author-${l.quote.author.slug}`),
+    ...previewDownloads.map((d) => `author-${d.quote.author.slug}`),
+  ])
+  const previewTagQuoteText = $derived(
+    dedupeTransitionNames(previewQuoteTextNames),
+  )
+  const previewTagAuthor = $derived(dedupeTransitionNames(previewAuthorNames))
+
+  let dataPackMaxed = $derived((storage?.quoteCount ?? 0) >= DATA_PACK_LIMIT)
+
+  function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  async function onDownloadDataPack() {
+    dataPackStatus = ''
+    dataPackBusy = true
+    try {
+      const count = await downloadDataPack()
+      dataPackStatus = `Downloaded ${count} quotes for offline use.`
+      await refreshStorage()
+    } catch (err) {
+      dataPackStatus =
+        err instanceof Error ? err.message : 'Failed to download data pack.'
+    } finally {
+      dataPackBusy = false
+    }
+  }
+
+  async function onClearCache() {
+    clearBusy = true
+    try {
+      await localdb.clearCache()
+      const [, , , { likes: likeResult, downloads: downloadResult }] =
+        await Promise.all([
+          fetchQuoteOfDayRange().then((quotes) => {
+            if (quotes.length > 0) feedCache.set('day', quotes)
+          }),
+          fetchRandomFeed(50, true).then((quotes) => {
+            if (quotes.length > 0) feedCache.set('random', quotes)
+          }),
+          fetchTrending().then((quotes) => {
+            if (quotes.length > 0) feedCache.set('trending', quotes)
+          }),
+          fetchUserContentBundle(true),
+        ])
+      userContentCache.setLikes(likeResult)
+      userContentCache.setDownloads(downloadResult)
+      likes = likeResult
+      downloads = downloadResult
+      await refreshStorage()
+    } finally {
+      clearBusy = false
+    }
+  }
 
   function formatDate(iso: string): string {
     return new Date(iso).toLocaleString(undefined, {
@@ -218,6 +280,69 @@
     {/if}
   </section>
 
+  <section
+    class="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200 lg:col-span-2"
+  >
+    <div class="flex items-center justify-between">
+      <h2 class="font-semibold text-stone-800">Search</h2>
+      <a href="/app/settings/search" class="text-sm text-accent hover:underline"
+        >Search quotes</a
+      >
+    </div>
+  </section>
+
+  <section
+    class="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200 lg:col-span-2"
+  >
+    <h2 class="mb-3 font-semibold text-stone-800">Offline data</h2>
+
+    {#if storage}
+      <p class="mb-3 text-sm text-stone-500">
+        {storage.quoteCount} quotes, {storage.authorCount} authors cached — {formatBytes(
+          storage.bytes,
+        )}.
+      </p>
+    {/if}
+
+    <p class="mb-3 text-sm text-stone-500">
+      Your cache grows naturally as you use the app. Download a batch of quotes,
+      authors, and tags for offline browsing, or clear it here.
+    </p>
+
+    {#if !auth.user}
+      <p class="mb-3 text-sm text-stone-400">
+        Sign in to download a data pack for better offline support.
+      </p>
+    {:else if dataPackMaxed}
+      <p class="mb-3 text-sm text-stone-400">
+        You've already got a large offline cache — no need to download more.
+      </p>
+    {/if}
+
+    <div class="flex flex-wrap gap-2">
+      <button
+        onclick={onDownloadDataPack}
+        disabled={!auth.user ||
+          dataPackMaxed ||
+          dataPackBusy ||
+          network.offline}
+        class="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+      >
+        {dataPackBusy ? 'Downloading…' : 'Download data pack'}
+      </button>
+      <button
+        onclick={onClearCache}
+        disabled={clearBusy}
+        class="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 disabled:opacity-50"
+      >
+        {clearBusy ? 'Clearing…' : 'Clear cache'}
+      </button>
+    </div>
+    {#if dataPackStatus}
+      <p class="mt-2 text-sm text-stone-500">{dataPackStatus}</p>
+    {/if}
+  </section>
+
   <section class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
     <h2 class="mb-3 font-semibold text-stone-800">Daily quote notification</h2>
 
@@ -273,8 +398,9 @@
     >
       <div class="mb-3 flex items-center justify-between">
         <h2 class="font-semibold text-stone-800">Likes</h2>
-        <a href="/settings/likes" class="text-sm text-accent hover:underline"
-          >See all</a
+        <a
+          href="/app/settings/likes"
+          class="text-sm text-accent hover:underline">See all</a
         >
       </div>
 
@@ -282,13 +408,13 @@
         <p class="text-sm text-stone-400">Quotes you like will show up here.</p>
       {:else}
         <ul class="divide-y divide-stone-100">
-          {#each likes.slice(0, 3) as like (like.quote.id)}
+          {#each previewLikes as like, i (like.quote.id)}
             <li class="py-3">
               <QuoteRow
                 quote={like.quote}
                 timestamp={formatDate(like.likedAt)}
-                tagQuoteText={active && claimQuoteText(like.quote.id)}
-                tagAuthor={active && claimAuthor(like.quote.author.slug)}
+                tagQuoteText={previewTagQuoteText[i]}
+                tagAuthor={previewTagAuthor[i]}
               />
             </li>
           {/each}
@@ -300,7 +426,7 @@
       <div class="mb-3 flex items-center justify-between">
         <h2 class="font-semibold text-stone-800">Downloads</h2>
         <a
-          href="/settings/downloads"
+          href="/app/settings/downloads"
           class="text-sm text-accent hover:underline">See all</a
         >
       </div>
@@ -311,17 +437,18 @@
         </p>
       {:else}
         <ul class="divide-y divide-stone-100">
-          {#each downloads.slice(0, 3) as download (download.createdAt)}
+          {#each previewDownloads as download, i (download.createdAt)}
             <li class="py-3">
               <QuoteRow
                 quote={{
                   id: download.quoteId,
                   text: download.quote.text,
+                  author_id: download.quote.author_id,
                   author: download.quote.author,
                 }}
                 timestamp={formatDate(download.createdAt)}
-                tagQuoteText={active && claimQuoteText(download.quoteId)}
-                tagAuthor={active && claimAuthor(download.quote.author.slug)}
+                tagQuoteText={previewTagQuoteText[previewLikes.length + i]}
+                tagAuthor={previewTagAuthor[previewLikes.length + i]}
               />
             </li>
           {/each}

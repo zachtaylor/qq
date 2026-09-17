@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state'
-  import { goto, invalidate } from '$app/navigation'
+  import { invalidate } from '$app/navigation'
   import { fetchQuoteById, recordDownload } from '$lib/api/quotes'
   import {
     renderCard,
@@ -13,6 +13,8 @@
     type CardStyle,
   } from '$lib/shareCard'
   import ColorField from '$lib/components/ColorField.svelte'
+  import BackButton from '$lib/components/BackButton.svelte'
+  import type { QQuote } from '$lib/types'
 
   let id = $derived(page.params.id!)
   let quotePromise = $derived(fetchQuoteById(id))
@@ -22,9 +24,7 @@
   let canvas = $state<HTMLCanvasElement>()
   let busy = $state(false)
   let error = $state('')
-  let loadedQuote = $state<{ text: string; author: { name: string } } | null>(
-    null,
-  )
+  let loadedQuote = $state<QQuote | null>(null)
 
   function selectPreset(preset: (typeof CARD_PRESETS)[number]) {
     // Only overwrite fields the user hasn't already customized away from
@@ -91,7 +91,10 @@
     const signal = { cancelled: false }
     renderCard(
       currentCanvas,
-      { text: quote.text, authorName: quote.author.name },
+      {
+        text: quote.text,
+        authorName: quote.author.name,
+      },
       currentStyle,
       signal,
     )
@@ -99,10 +102,6 @@
       signal.cancelled = true
     }
   })
-
-  function back() {
-    history.length > 1 ? history.back() : goto('/app')
-  }
 
   async function onShare() {
     if (!canvas || !loadedQuote) return
@@ -125,13 +124,7 @@
 <div class="h-full overflow-y-auto">
   <div class="mx-auto max-w-lg px-4 pt-6 pb-6 lg:max-w-4xl">
     <div class="mb-4 flex items-center gap-2">
-      <button
-        onclick={back}
-        aria-label="Back"
-        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/80 text-lg text-stone-600 shadow-sm ring-1 ring-stone-200 backdrop-blur-xl hover:text-stone-900"
-      >
-        ←
-      </button>
+      <BackButton />
       <h1 class="flex-1 text-center text-xl font-bold text-stone-900">
         Share this quote
       </h1>

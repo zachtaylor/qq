@@ -1,9 +1,11 @@
 <script lang="ts">
-  import { goto } from '$app/navigation'
   import { page } from '$app/state'
-  import { fetchQuoteById, setLiked } from '$lib/api/quotes'
+  import { fetchQuoteById, fetchSimilarQuotes, setLiked } from '$lib/api/quotes'
   import { network } from '$lib/stores/network.svelte'
   import QuoteList from '$lib/components/QuoteList.svelte'
+  import BackButton from '$lib/components/BackButton.svelte'
+  import DetailShell from '$lib/components/DetailShell.svelte'
+  import { tagChipTransition } from '$lib/viewTransition'
   import type { PageProps } from './$types'
   import Heart from '@lucide/svelte/icons/heart'
   import Download from '@lucide/svelte/icons/download'
@@ -12,6 +14,7 @@
 
   let id = $derived(page.params.id!)
   let quote = $state(data.quote)
+  let similar = $state(data.similar)
   let loading = $state(!data.quote)
 
   // Page data is the local SQLite snapshot. SvelteKit reuses this component
@@ -20,10 +23,23 @@
   // page keeps showing the previous quote's content after navigating.
   $effect(() => {
     quote = data.quote
+    similar = data.similar
     loading = !data.quote
     fetchQuoteById(id)
       .then((fresh) => {
         if (fresh) quote = fresh
+        return fresh ?? quote
+      })
+      .then((current) => {
+        // Background refresh, after first paint: reconciles the tag/author
+        // recency pulls against the network (data.similar above is
+        // cache-only). Cached "similar" list is already showing.
+        if (current) return fetchSimilarQuotes(current)
+      })
+      .then((fresh) => {
+        // Replace outright (already sorted by popularity) — rearranging is
+        // fine here since the underlying like/download counts just changed.
+        if (fresh) similar = fresh
       })
       .catch(() => {})
       .finally(() => {
@@ -41,9 +57,14 @@
     count = quote?.like_count ?? 0
   })
 
-  function back() {
-    history.length > 1 ? history.back() : goto('/app')
-  }
+  const author = $derived(quote?.author ?? null)
+
+  const quoteTextName = $derived(`quote-text-${id}`)
+  const authorName = $derived(author ? `author-${author.slug}` : '')
+  const authorPortraitName = $derived(
+    author ? `author-portrait-${author.slug}` : '',
+  )
+  const tagNames = $derived(quote?.tags.map((tag) => `tag-${tag.slug}`) ?? [])
 
   async function toggleLike() {
     if (busy || network.offline || !quote) return
@@ -66,97 +87,112 @@
   }
 </script>
 
-<div class="mx-auto h-full max-w-lg overflow-y-auto px-4 py-6 lg:max-w-4xl">
-  {#if quote || loading}
-    <div class="mb-8 flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <button
-          onclick={back}
-          aria-label="Back"
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/80 text-lg text-stone-600 shadow-sm ring-1 ring-stone-200 backdrop-blur-xl hover:text-stone-900"
-        >
-          ←
-        </button>
-        {#if quote}
-          <a
-            href="/app/authors/{quote.author.slug}"
-            class="text-sm font-medium text-accent hover:underline"
-            style="view-transition-name: author-{quote.author.slug}"
-          >
-            {quote.author.name}
-          </a>
-        {/if}
-      </div>
-      {#if quote}
-        <div class="flex items-center gap-4">
-          <button
-            onclick={toggleLike}
-            disabled={network.offline}
-            class="flex items-center gap-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 {liked
-              ? 'text-accent'
-              : 'text-stone-400 hover:text-stone-600'}"
-            aria-pressed={liked}
-            aria-label="Like"
-          >
-            <Heart
-              class="size-4 {animateLike ? 'animate-like-pop' : ''}"
-              onanimationend={() => (animateLike = false)}
-              fill={liked ? 'currentColor' : 'none'}
-            />{count}
-          </button>
-          {#if network.offline}
-            <span class="text-stone-300" aria-label="Share unavailable offline">
-              <Download class="size-4" />
-            </span>
-          {:else}
-            <a
-              href="/share/{quote.id}"
-              class="flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-600"
-              aria-label="Share"
-            >
-              <Download class="size-4" />{quote.downloads_count}
-            </a>
+{#key id}
+  <DetailShell>
+    {#if quote || loading}
+      <div class="mb-8 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <BackButton />
+          {#if quote && author}
+            <div class="flex items-center gap-2">
+              {#if author.portrait_url}
+                <img
+                  src={author.portrait_url}
+                  alt={author.name}
+                  class="h-8 w-8 rounded-full object-cover ring-1 ring-stone-200"
+                  style={authorPortraitName
+                    ? `view-transition-name: ${authorPortraitName}`
+                    : ''}
+                />
+              {/if}
+              <a
+                href="/app/authors/{author.slug}"
+                class="text-sm font-medium text-accent hover:underline"
+                style={authorName ? `view-transition-name: ${authorName}` : ''}
+              >
+                {author.name}
+              </a>
+            </div>
           {/if}
         </div>
+        {#if quote}
+          <div class="flex items-center gap-4">
+            <button
+              onclick={toggleLike}
+              disabled={network.offline}
+              class="flex items-center gap-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 {liked
+                ? 'text-accent'
+                : 'text-stone-400 hover:text-stone-600'}"
+              aria-pressed={liked}
+              aria-label="Like"
+            >
+              <Heart
+                class="size-4 {animateLike ? 'animate-like-pop' : ''}"
+                onanimationend={() => (animateLike = false)}
+                fill={liked ? 'currentColor' : 'none'}
+              />{count}
+            </button>
+            {#if network.offline}
+              <span
+                class="text-stone-300"
+                aria-label="Share unavailable offline"
+              >
+                <Download class="size-4" />
+              </span>
+            {:else}
+              <a
+                href="/app/share/{quote.id}"
+                class="flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-600"
+                aria-label="Share"
+              >
+                <Download class="size-4" />{quote.downloads_count}
+              </a>
+            {/if}
+          </div>
+        {/if}
+      </div>
+
+      <blockquote
+        class="font-serif text-4xl leading-snug text-stone-800 sm:text-4xl"
+        style="view-transition-name: {quoteTextName}"
+      >
+        {#if quote}"{quote.text}"{/if}
+      </blockquote>
+
+      {#if quote && quote.tags.length > 0}
+        <div class="mt-5 flex flex-wrap gap-1.5">
+          {#each quote.tags as tag (tag.id)}
+            <a
+              href="/app/tags/{tag.slug}"
+              class="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-500 hover:bg-stone-200"
+              style="view-transition-name: tag-{tag.slug}"
+              onclick={(e) => tagChipTransition(e.currentTarget, tag.slug)}
+            >
+              #{tag.name}
+            </a>
+          {/each}
+        </div>
       {/if}
-    </div>
 
-    <blockquote
-      class="font-serif text-4xl leading-snug text-stone-800 sm:text-4xl"
-      style="view-transition-name: quote-text-{id}"
-    >
-      {#if quote}“{quote.text}”{/if}
-    </blockquote>
-
-    {#if quote && quote.tags.length > 0}
-      <div class="mt-5 flex flex-wrap gap-1.5">
-        {#each quote.tags as tag (tag.id)}
+      {#if quote}
+        <div class="mt-10 flex items-center justify-between">
+          <h2 class="font-semibold text-stone-800">Similar quotes</h2>
           <a
-            href="/app/tags/{tag.slug}"
-            class="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-500 hover:bg-stone-200"
+            href="/app/tabs/trending"
+            class="text-sm text-accent hover:underline">See what's trending →</a
           >
-            #{tag.name}
-          </a>
-        {/each}
-      </div>
+        </div>
+        <div class="mt-3">
+          <QuoteList
+            quotes={similar}
+            empty="No similar quotes yet."
+            takenAuthorNames={authorName ? [authorName] : []}
+            takenTagNames={tagNames}
+          />
+        </div>
+      {/if}
+    {:else}
+      <p class="py-12 text-center text-sm text-stone-400">Quote not found.</p>
     {/if}
-
-    {#if quote}
-      <div class="mt-10 flex items-center justify-between">
-        <h2 class="font-semibold text-stone-800">Similar quotes</h2>
-        <a href="/app/tabs/trending" class="text-sm text-accent hover:underline"
-          >See what's trending →</a
-        >
-      </div>
-      <div class="mt-3">
-        <QuoteList
-          quotes={data.similar}
-          empty="No similar quotes yet."
-          hideAuthor
-        />
-      </div>
-    {/if}
-  {:else}
-    <p class="py-12 text-center text-sm text-stone-400">Quote not found.</p>
-  {/if}
-</div>
+  </DetailShell>
+{/key}

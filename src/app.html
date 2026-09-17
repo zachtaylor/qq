@@ -12,9 +12,90 @@
     <link rel="icon" href="/icons/icon-192.webp" />
     <link rel="apple-touch-icon" href="/icons/icon-192.webp" />
     <script src="https://accounts.google.com/gsi/client" async></script>
+    <style>
+      #qq-boot-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #ddd;
+        transition: opacity 0.3s ease-in;
+      }
+
+      #qq-boot-loading-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px 28px;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        color: #a8a29e;
+        font:
+          14px system-ui,
+          sans-serif;
+        transition:
+          transform 0.3s ease-in,
+          opacity 0.3s ease-in;
+      }
+
+      #qq-boot-loading.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #qq-boot-loading.is-hidden #qq-boot-loading-box {
+        transform: translateY(24px) scale(0.96);
+        opacity: 0;
+      }
+    </style>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
+    <div id="qq-boot-loading">
+      <div id="qq-boot-loading-box">Loading…</div>
+    </div>
+    <script>
+      console.debug('[boot]', performance.now(), 'start')
+      // Fades + slides the box down, then removes the overlay after the
+      // transition — see fadeOutBootLoading() called from
+      // routes/app/+layout.svelte once real content is ready to show
+      // underneath.
+      window.fadeOutBootLoading = () => {
+        console.debug('[boot]', performance.now(), 'fadeOutBootLoading start')
+        const el = document.getElementById('qq-boot-loading')
+        if (!el) return
+        el.classList.add('is-hidden')
+        el.addEventListener(
+          'transitionend',
+          (e) => {
+            // transitionend bubbles, and the child box has its own
+            // transform/opacity transitions on the same 0.3s — only act
+            // on el's own opacity transition finishing, so a child
+            // transition finishing first (or an unrelated bubbled event)
+            // can't remove the overlay early.
+            if (e.target !== el || e.propertyName !== 'opacity') return
+            // TEMP DEBUG: el.remove() disabled so the overlay stays in the
+            // DOM (just opacity:0 + pointer-events:none) and the
+            // is-hidden transition can be toggled back and forth to watch
+            // it instead of vanishing once. Restore el.remove() when done.
+            el.style.pointerEvents = 'none'
+            console.debug(
+              '[boot]',
+              performance.now(),
+              'fadeOutBootLoading removed',
+            )
+          },
+          { once: true },
+        )
+      }
+      if (!location.pathname.startsWith('/app')) {
+        document.getElementById('qq-boot-loading').remove()
+        console.debug('[boot] non-/app route, loading screen skipped')
+      }
+    </script>
     <div style="display: contents">%sveltekit.body%</div>
   </body>
 </html>

@@ -2,83 +2,83 @@
   import favicon from '$lib/assets/favicon.svg'
   import '../app.css'
   import { Capacitor } from '@capacitor/core'
-  import { SplashScreen } from '@capacitor/splash-screen'
   import OfflineBanner from '$lib/components/OfflineBanner.svelte'
   import { page } from '$app/state'
   import { onNavigate, afterNavigate } from '$app/navigation'
   import { clearQuoteTransitionTags } from '$lib/viewTransition'
   import { PUBLIC_UMAMI_WEBSITE_ID } from '$env/static/public'
+  import { dev } from '$app/environment'
 
-  if (Capacitor.isNativePlatform()) SplashScreen.hide()
+  // Boot loading screen isn't faded out here: this layout mounts before
+  // /app's boot load() resolves, so app/+layout.svelte owns the fade instead
+  // (it only mounts once that load() has resolved).
+  console.debug('[boot] root +layout.svelte mounted', performance.now())
 
-  // Injected here (rather than a static <script> in app.html) so data-tag
-  // can be set from Capacitor.getPlatform() — native builds serve from a
-  // capacitor://localhost-style origin, not the real domain, so without a
-  // tag there's no way to tell ios/android/web sessions apart in Umami's
-  // dashboard.
-  // data-auto-track="false": Umami's default autotrack patches
-  // history.pushState/replaceState itself to detect SPA route changes, but
-  // /app's tab bar (see app/+layout.svelte) already calls history.pushState
-  // directly on every tab switch to avoid a real SvelteKit navigation —
-  // autotrack would fire on that *and* our own afterNavigate below would
-  // fire on real route changes, double-counting. Tracking every pageview
-  // explicitly (afterNavigate here, trackTabView in app/+layout.svelte) is
-  // the only way to get exactly one view per navigation.
-  const umamiScript = document.createElement('script')
-  umamiScript.defer = true
-  umamiScript.src = 'https://cloud.umami.is/script.js'
-  umamiScript.dataset.websiteId = PUBLIC_UMAMI_WEBSITE_ID
-  umamiScript.dataset.tag = Capacitor.getPlatform()
-  umamiScript.dataset.autoTrack = 'false'
-  // `defer` means window.umami isn't defined until this load fires — the
-  // very first afterNavigate (the initial 'enter' navigation) runs long
-  // before that, so window.umami?.track() below would silently no-op on a
-  // quick open-then-close. Firing the first pageview from onload instead
-  // guarantees it's sent as soon as the tracker actually exists.
-  umamiScript.onload = () => {
-    window.umami?.track((props) => ({ ...props, url: page.url.pathname }))
+  // Injected here (not a static <script> in app.html) so data-tag can be set
+  // from Capacitor.getPlatform(). data-auto-track="false": /app's tab bar
+  // calls history.pushState directly on tab switches (see
+  // app/tabs/+layout.svelte), which would double-count against Umami's own
+  // autotrack — pageviews are tracked explicitly instead (afterNavigate
+  // here, trackTabView there). Skipped in dev, so window.umami stays
+  // undefined and every .track() call below silently no-ops.
+  if (!dev) {
+    const umamiScript = document.createElement('script')
+    umamiScript.defer = true
+    umamiScript.src = 'https://cloud.umami.is/script.js'
+    umamiScript.dataset.websiteId = PUBLIC_UMAMI_WEBSITE_ID
+    umamiScript.dataset.tag = Capacitor.getPlatform()
+    umamiScript.dataset.autoTrack = 'false'
+    // `defer` means window.umami isn't defined until this load fires — the
+    // very first afterNavigate (the initial 'enter' navigation) runs long
+    // before that, so window.umami?.track() below would silently no-op on a
+    // quick open-then-close. Firing the first pageview from onload instead
+    // guarantees it's sent as soon as the tracker actually exists.
+    umamiScript.onload = () => {
+      window.umami?.track((props) => ({ ...props, url: page.url.pathname }))
+    }
+    document.head.appendChild(umamiScript)
   }
-  document.head.appendChild(umamiScript)
 
   // Covers subsequent real SvelteKit navigations. The initial 'enter'
   // navigation is skipped here since umamiScript.onload above already
   // covers it (and typically fires first anyway).
   afterNavigate((navigation) => {
+    console.debug(
+      '[nav] afterNavigate',
+      navigation.type,
+      page.url.pathname,
+      performance.now(),
+    )
     if (navigation.type === 'enter') return
     window.umami?.track((props) => ({ ...props, url: page.url.pathname }))
   })
 
   onNavigate((navigation) => {
+    console.debug(
+      '[nav] onNavigate start',
+      navigation.from?.url.pathname,
+      '->',
+      navigation.to?.url.pathname,
+      performance.now(),
+    )
     if (!document.startViewTransition) return
     return new Promise((resolve) => {
       const transition = document.startViewTransition(async () => {
-        // resolve() must fire first: SvelteKit's navigation is waiting on
-        // this promise before it will actually render the new page, so
-        // awaiting navigation.complete before calling resolve() deadlocks
-        // (the transition times out with "aborted because of timeout in
-        // DOM update").
         resolve()
         await navigation.complete
-        // Clear imperative tags after the new page has rendered, but still
-        // inside the transition's DOM-update callback — i.e. before the
-        // "after" snapshot is taken. Otherwise a tag applied to a clicked
-        // element (e.g. a "Similar quotes" card, which can persist across
-        // same-route navigations) survives into the new render, where the
-        // destination page may reactively claim the same
-        // view-transition-name for its own element, producing a "duplicate
-        // view-transition-name" error.
+        console.debug('[nav] complete', performance.now())
         clearQuoteTransitionTags()
       })
+      transition.finished.then(() =>
+        console.debug('[nav] view transition finished', performance.now()),
+      )
     })
   })
 
   let { children } = $props()
 
   let hideChrome = $derived(
-    page.url.pathname === '/' ||
-      page.url.pathname.startsWith('/share/') ||
-      page.url.pathname.startsWith('/q/') ||
-      page.url.pathname.startsWith('/app/'),
+    page.url.pathname === '/' || page.url.pathname.startsWith('/app/'),
   )
 </script>
 

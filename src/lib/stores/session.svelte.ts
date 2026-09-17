@@ -8,19 +8,14 @@ import {
   PUBLIC_GOOGLE_IOS_CLIENT_ID,
 } from '$env/static/public'
 import { supabase } from '$lib/supabase'
+import { isDeviceMergedForUser, markDeviceMergedForUser } from '$lib/localdb'
 
 const STORAGE_KEY = 'qq.deviceId'
 
 let deviceId = $state<string | null>(null)
 let deviceReady = $state(false)
 let user = $state<User | null>(null)
-let authReady = $state(false)
-let mergedThisSession = false
 let socialLoginReady: Promise<void> | null = null
-// Set right before requesting a magic link so the web redirect flow (which
-// has no explicit callback of its own — Supabase's detectSessionInUrl
-// consumes the tokens silently) can still tell a fresh sign-in apart from
-// SIGNED_IN firing on ordinary session restore at app boot.
 let awaitingEmailOtpSignIn = false
 
 /**
@@ -65,15 +60,17 @@ function ensureSocialLoginInitialized(): Promise<void> {
   return socialLoginReady
 }
 
-/** Merges this device's pre-login likes/downloads into the account, once per session. */
+/** Merges this device's pre-login likes/downloads into the account, once per
+ *  account (persisted in localdb's _meta table, so a session restore on app
+ *  boot/page refresh — which also fires SIGNED_IN — doesn't re-run it; only
+ *  an explicit sign-in into an account not yet merged does). */
 /** Retry delays for PGRST303 ("JWT issued at future") — a clock-skew race
  *  between Auth issuing a fresh token and PostgREST validating it, seen
  *  right after magic-link sign-in. Retrying a beat later resolves it. */
 const JWT_CLOCK_SKEW_RETRY_DELAYS_MS = [500, 1500]
 
-async function mergeDeviceOnce() {
-  if (mergedThisSession) return
-  mergedThisSession = true
+async function mergeDeviceOnce(userId: string) {
+  if (await isDeviceMergedForUser(userId)) return
   const id = await ensureDeviceId()
 
   let error = (
@@ -87,26 +84,25 @@ async function mergeDeviceOnce() {
     ).error
   }
   if (error) console.error('merge_device_into_account failed', error)
+  else await markDeviceMergedForUser(userId)
 }
 
-supabase.auth.getSession().then(({ data, error }) => {
+export const ready = supabase.auth.getSession().then(({ data, error }) => {
   if (error) console.error('getSession failed', error)
   user = data.session?.user ?? null
-  authReady = true
-  // console.debug('[auth] initial session', { userId: user?.id ?? null })
+  console.debug('[auth]', performance.now(), 'ready', data)
 })
 
 supabase.auth.onAuthStateChange((event, session) => {
   // console.debug('[auth] state change', event, { userId: session?.user?.id ?? null, })
   user = session?.user ?? null
-  if (event === 'SIGNED_IN') {
-    mergeDeviceOnce()
+  if (event === 'SIGNED_IN' && session?.user) {
+    mergeDeviceOnce(session.user.id)
     if (awaitingEmailOtpSignIn) {
       awaitingEmailOtpSignIn = false
       window.umami?.track('sign_in', { provider: 'email' })
     }
   }
-  if (event === 'SIGNED_OUT') mergedThisSession = false
 })
 
 // Web opens the magic link in the same browser tab, so a plain https
@@ -199,8 +195,5 @@ export const auth = {
   },
   get userId() {
     return user?.id ?? null
-  },
-  get ready() {
-    return authReady
   },
 }

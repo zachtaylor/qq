@@ -9,9 +9,9 @@
   if (data.dailyQuotes.length > 0) feedCache.set('day', data.dailyQuotes)
 
   const TAB_ORDER = [
-    '/app/daily',
-    '/app/random',
-    '/app/trending',
+    '/app/tabs/daily',
+    '/app/tabs/random',
+    '/app/tabs/trending',
     '/app/settings',
   ]
   const SWIPE_THRESHOLD = 60
@@ -24,7 +24,7 @@
 
   // activeIndex is tracked locally rather than derived from page.url: tab
   // switches update the address bar directly via history.pushState (bypassing
-  // SvelteKit's router, which would otherwise reconcile /app/daily <-> /app/random
+  // SvelteKit's router, which would otherwise reconcile /app/tabs/daily <-> /app/tabs/random
   // as a real route change and remount this layout). Kept in sync with browser
   // back/forward via the popstate listener below, and with real SvelteKit
   // navigations into /app/* via the $effect further down.
@@ -136,7 +136,7 @@
     return () => window.removeEventListener('popstate', onPopState)
   })
 
-  // Covers real SvelteKit navigations into /app/* (e.g. the /app -> /app/daily
+  // Covers real SvelteKit navigations into /app/* (e.g. the /app -> /app/tabs/daily
   // redirect, or landing here after a back/forward from outside /app) that
   // don't go through selectTab.
   $effect(() => {

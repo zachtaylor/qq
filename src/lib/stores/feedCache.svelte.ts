@@ -9,7 +9,7 @@ interface FeedEntry {
 }
 
 /** How long a cached feed is considered fresh enough to skip refetching on
- *  remount — e.g. leaving /app/random for a quote detail page and coming
+ *  remount — e.g. leaving /app/tabs/random for a quote detail page and coming
  *  back shouldn't re-roll the random list, only a real return visit later
  *  (or an explicit pull-to-refresh) should. */
 export const FEED_STALE_MS = 3 * 60 * 60 * 1000

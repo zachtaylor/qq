@@ -71,7 +71,7 @@
             text: download.quote.text,
             author: download.quote.author,
           }}
-          meta={formatDate(download.createdAt)}
+          timestamp={formatDate(download.createdAt)}
           tagQuoteText={claimQuote(download.quoteId)}
           tagAuthor={claimAuthor(download.quote.author.slug)}
         />

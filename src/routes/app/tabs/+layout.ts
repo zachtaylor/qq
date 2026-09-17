@@ -4,9 +4,9 @@ import { getCachedQuoteOfDayRange } from '$lib/api/quotes'
 // Block first paint of /app on the local SQLite connection being open (it
 // was already kicked off from hooks.client.ts, which runs even earlier —
 // see the comment there — so this just waits on the same memoized promise
-// rather than starting a second init). Without this, /app/daily's DayFeed
+// rather than starting a second init). Without this, /app/tabs/daily's DayFeed
 // mounts and shows a brief "Loading…"/empty state while the db is still
-// opening. Scoped to /app rather than the root layout so the marketing
+// opening. Scoped to the app tab layout rather than the root layout so the marketing
 // page at "/" (which doesn't touch localdb) isn't held up by it.
 //
 // The daily feed's SQLite preload is also kicked off here, in parallel

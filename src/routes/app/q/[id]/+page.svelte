@@ -79,7 +79,7 @@
         </button>
         {#if quote}
           <a
-            href="/authors/{quote.author.slug}"
+            href="/app/authors/{quote.author.slug}"
             class="text-sm font-medium text-accent hover:underline"
             style="view-transition-name: author-{quote.author.slug}"
           >
@@ -132,7 +132,7 @@
       <div class="mt-5 flex flex-wrap gap-1.5">
         {#each quote.tags as tag (tag.id)}
           <a
-            href="/tags/{tag.slug}"
+            href="/app/tags/{tag.slug}"
             class="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-500 hover:bg-stone-200"
           >
             #{tag.name}
@@ -144,7 +144,7 @@
     {#if quote}
       <div class="mt-10 flex items-center justify-between">
         <h2 class="font-semibold text-stone-800">Similar quotes</h2>
-        <a href="/app/trending" class="text-sm text-accent hover:underline"
+        <a href="/app/tabs/trending" class="text-sm text-accent hover:underline"
           >See what's trending →</a
         >
       </div>

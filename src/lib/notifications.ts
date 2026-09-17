@@ -58,7 +58,7 @@ export function registerNotificationTapHandler(): void {
       if (!quoteId) return
       window.umami?.track('daily_notification_tapped', { quote_id: quoteId })
       await localdbReady()
-      goto(`/q/${quoteId}`)
+      goto(`/app/q/${quoteId}`)
     },
   )
 }

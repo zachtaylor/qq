@@ -93,7 +93,7 @@
     error = null
 
     // A fresh cached feed (e.g. returning from a quote detail page to
-    // /app/random) is reused as-is instead of re-rolling load() — only a
+    // /app/tabs/random) is reused as-is instead of re-rolling load() — only a
     // stale/empty cache or an explicit pull-to-refresh should replace it.
     if (feedKey && !feedCache.isStale(feedKey)) return
 
@@ -268,7 +268,7 @@
               </p>
             {/if}
             <a
-              href="/q/{quote.id}"
+              href="/app/q/{quote.id}"
               class="block"
               onclick={(e) =>
                 tagQuoteTransition(
@@ -307,7 +307,7 @@
               <div class="mt-4 flex flex-wrap justify-center gap-1.5">
                 {#each quote.tags as tag (tag.id)}
                   <a
-                    href="/tags/{tag.slug}"
+                    href="/app/tags/{tag.slug}"
                     class="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-500 hover:bg-stone-200"
                   >
                     #{tag.name}

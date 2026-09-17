@@ -19,11 +19,11 @@ import { ready as localdbReady } from '$lib/localdb'
 // src/routes/q/[id]/+page.ts).
 if (!Capacitor.isNativePlatform()) initJeepSqlite(window)
 
-// Kick off the SQLite connection here rather than waiting for /app/daily's
+// Kick off the SQLite connection here rather than waiting for /app/tabs/daily's
 // DayFeed to mount and call it lazily — hooks.client.ts runs at module
 // scope before the route waterfall even starts, so this gives the (native
 // plugin bridge / jeep-sqlite element upgrade) work a head start of the
-// whole redirect chain (/ -> /app -> /app/daily) instead of eating into
+// whole redirect chain (/ -> /app -> /app/tabs/daily) instead of eating into
 // the "no quote of the day" flash on first paint. Fire-and-forget: callers
 // still await ready() themselves before touching the db.
 localdbReady()

@@ -21,7 +21,7 @@
 </script>
 
 <a
-  href="/q/{quote.id}"
+  href="/app/q/{quote.id}"
   class="block"
   onclick={(e) =>
     tagQuoteTransition(e.currentTarget, quote.id, quote.author.slug)}

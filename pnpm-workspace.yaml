@@ -2,7 +2,7 @@
 #   sharp: true
 
 allowBuilds:
-  sharp: set this to true or false
+  sharp: true
 minimumReleaseAgeExclude:
   - '@supabase/auth-js@2.117.0'
   - '@supabase/functions-js@2.117.0'

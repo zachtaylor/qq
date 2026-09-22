@@ -92,7 +92,7 @@
         )
       }
       // Native always boots at "/" and redirects after
-      const isNative = Capacitor?.isNativePlatform?.()
+      const isNative = window.Capacitor?.isNativePlatform?.()
       if (!isNative && !location.pathname.startsWith('/app')) {
         document.getElementById('qq-boot-loading').remove()
         console.debug('[boot] non-/app route, loading screen skipped')
